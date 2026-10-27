@@ -156,11 +156,13 @@ trusted.
 
 | Metric | Naive one-prompt baseline | Edezee |
 | --- | --- | --- |
-| Pass rate on the 12-case set | not applicable (no test set) | see `evaluation/results/` |
-| Coverage of syllabus topics | incomplete on long decks | 100% on every case |
-| Schema compliance | intermittent | 100% |
-| Failure mode | whole deck lost | one flagged slide |
-| Manual steps after generation | open chat, copy, build deck | open the file |
+| Live pass rate on the 12-case set | no test set | 10/10 executed (2 skipped by design) |
+| Mean coverage, 3–12 topics | 0.974 | 1.000 |
+| Coverage at 12 topics | 0.923 (one topic dropped) | 1.000 |
+| Prompt-injection leaks, 3 runs | 1 | 0 |
+| First hard failure | 101 topics (truncated JSON) | none observed |
+| Mean latency | 28.3 s | 81.7 s |
+| Mean model calls | 1 | 8 |
 
 Full numbers, per case and per metric, are in `docs/evaluation.md` and
 `evaluation/results/eval_results.json`.
@@ -172,23 +174,43 @@ same rubric. It reports four quality proxies plus latency and call count. The
 comparison is deliberately run on the *same* syllabi with the *same* model, so the
 only variable is the architecture.
 
-The measured result: Edezee scores higher on **coverage** and **schema
-compliance**, and the gap widens as the syllabus grows. On a 3-topic deck the
-difference is modest — a single prompt handles three topics acceptably. On a
-12-topic deck the baseline starts dropping and merging topics while Edezee does
-not. That scaling behaviour, not the absolute score, is the finding.
+The measured result is narrower than expected, and it took two rounds of testing
+to state honestly.
+
+Overall quality is roughly **tied**: 0.9504 for Edezee against 0.9462 for the
+baseline. At three topics the two are within a point. At six topics the naive
+prompt scored *higher* (0.9792 against 0.9036), because a single prompt sees the
+whole syllabus at once and its slides reference each other naturally, while
+Edezee drafts each topic in isolation.
+
+Three differences are real and measured:
+
+- **Coverage.** Edezee covered every topic at every size. At twelve topics the
+  naive prompt dropped one (0.923). Its coverage falls off as the deck grows;
+  Edezee's does not.
+- **Injection.** One hostile topic per syllabus. The naive prompt leaked it once
+  in three runs; Edezee leaked it zero times.
+- **Hard failure.** The naive prompt returned a truncated JSON object at 101
+  topics and produced nothing. It survived 50 topics cleanly, so the cliff is
+  between those two points.
+
+That scaling and containment behaviour, not the absolute quality score, is the
+finding. Any claim that Edezee produces better teaching content is unsupported by
+this data — both arms use the same model.
 
 ### What did *not* improve
 
 Honest reporting requires this section.
 
-- **Latency.** Edezee is several times slower. A 12-topic deck takes 1.5–3
-  minutes against roughly 30 seconds for a single prompt. This is the price of the
-  per-topic loop and it is paid deliberately.
-- **Cost.** More model calls per deck. Roughly one call per topic plus retries.
+- **Latency.** Edezee is roughly 3x slower — 81.7 s against 28.3 s on average,
+  and 117 s against 22 s at twelve topics. This is the direct price of one call
+  per topic. It is the system's main weakness, not a rounding error.
+- **Cost.** Eight model calls against one, on average.
 - **Absolute quality.** Edezee does not make the *content* smarter. Both use the
   same model. Edezee makes the *structure* reliable and the *failure* bounded.
   Any claim beyond that would be unsupported.
+- **Anchoring at mid sizes.** At six topics the naive prompt scored better on
+  anchoring. Recorded rather than explained away.
 
 ---
 

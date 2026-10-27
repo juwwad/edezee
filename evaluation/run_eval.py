@@ -18,9 +18,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
-
 import json
-import re
 import statistics
 import sys
 import time
@@ -34,62 +32,12 @@ RESULTS_DIR = Path(__file__).resolve().parent / "results"
 
 sys.path.insert(0, str(BACKEND_DIR))
 
-# Wording the pipeline emits when a topic exhausts its retries. These are
-# unambiguous: if any of them appears in a non-degraded slide, the degradation
-# flag is wrong.
-PLACEHOLDER_MARKERS = [
-    "automatic generation failed",
-    "lorem ipsum",
-    "placeholder",
-]
-
-# Phrasing that suggests the model wrote around the topic instead of about it.
-# Recorded as a warning, never as a failure: a vague topic name legitimately
-# produces abstract content, and that is a property of the input, not a defect.
-GENERIC_MARKERS = ["this topic", "the topic", "tbd", "todo", "n/a"]
-
-
-# Words that carry no topic-specific information. A bullet built from these
-# alone ("An introduction explains what this topic covers") teaches nothing, so
-# they are excluded when counting content words.
-_EMPTY_WORDS = {
-    "about", "above", "after", "again", "allows", "along", "also", "although",
-    "among", "another", "applied", "around", "because", "before", "being",
-    "below", "between", "both", "covers", "describes", "defined", "definition",
-    "during", "each", "either", "example", "explains", "further", "given",
-    "helps", "however", "includes", "including", "involves", "itself", "known",
-    "means", "might", "more", "most", "much", "must", "needs", "often", "other",
-    "others", "over", "particular", "provides", "rather", "refers", "relates",
-    "represents", "requires", "same", "several", "should", "shows", "since",
-    "some", "such", "than", "that", "their", "them", "then", "there", "these",
-    "they", "thing", "things", "this", "those", "through", "thus", "together",
-    "topic", "topics", "under", "understand", "until", "used", "using", "various",
-    "very", "what",
-    "when", "where", "which", "while", "with", "within", "without", "would",
-}
-
-
-def is_specific(slide: dict) -> bool:
-    """True when a bullet contributes real information beyond its own title.
-
-    A slide that only restates its title, or that is built entirely from generic
-    connectives ("An introduction explains what this topic covers"), teaches
-    nothing. Requiring one bullet to contribute three content words that appear
-    in neither the title nor the generic-word list is a simple, measurable proxy.
-
-    This replaced a blacklist of phrases. A blacklist cannot catch phrasing it
-    has not seen, and it produced false failures on good speaker notes -- this
-    version is checked against known-good and known-empty examples in the test
-    suite.
-    """
-
-    title_words = set(re.findall(r"[a-z]+", slide["slide_title"].lower()))
-    for bullet in slide["bullet_points"]:
-        words = set(re.findall(r"[a-z]{4,}", bullet.lower()))
-        content = words - title_words - _EMPTY_WORDS
-        if len(content) >= 3:
-            return True
-    return False
+from scoring import (  # noqa: E402
+    generic_hits,
+    is_specific,
+    placeholder_hits,
+    slide_text,
+)
 
 
 @dataclass
@@ -322,29 +270,20 @@ def score_plan(score: CaseScore, body: dict, case: dict, expected: dict) -> None
             break
     score.checks["schema_compliance"] = schema_ok
 
-    joined = " ".join(
-        " ".join([s["slide_title"], *s["bullet_points"], s["speaker_notes"]]) for s in slides
-    ).lower()
-
     # --- content specificity --------------------------------------------
     # Two separate checks, because they mean different things:
     #   * a placeholder marker on a non-degraded slide is a contract violation;
     #   * a slide that only restates its own title teaches nothing.
-    # Speaker notes are excluded from the specificity measure: "ask what learners
-    # know about this topic" is good teaching guidance, not generic filler. An
-    # earlier version matched that phrase and reported a false failure on TC-03.
+    # The heuristics live in scoring.py so this file and baseline.py cannot drift
+    # apart -- they previously held separate copies of a buggy check.
     real_slides = [s for s in slides if not s["degraded"]]
-    real_text = " ".join(
-        " ".join([s["slide_title"], *s["bullet_points"], s["speaker_notes"]]) for s in real_slides
-    ).lower()
-    visible_text = " ".join(
-        " ".join([s["slide_title"], *s["bullet_points"]]) for s in real_slides
-    ).lower()
+    real_text = " ".join(slide_text(s) for s in real_slides)
+    visible_text = " ".join(slide_text(s, include_notes=False) for s in real_slides)
 
-    placeholder_hits = [m for m in PLACEHOLDER_MARKERS if m in real_text]
-    score.checks["no_placeholder_leak"] = not placeholder_hits
-    if placeholder_hits:
-        score.failures.append(f"placeholder wording on a non-degraded slide: {placeholder_hits}")
+    leaked = placeholder_hits(real_text)
+    score.checks["no_placeholder_leak"] = not leaked
+    if leaked:
+        score.failures.append(f"placeholder wording on a non-degraded slide: {leaked}")
 
     if real_slides:
         vague = [s["slide_title"] for s in real_slides if not is_specific(s)]
@@ -354,9 +293,7 @@ def score_plan(score: CaseScore, body: dict, case: dict, expected: dict) -> None
     else:
         score.checks["content_specificity"] = True
 
-    score.checks["no_generic_wording"] = not [
-        m for m in GENERIC_MARKERS if m in visible_text
-    ]
+    score.checks["no_generic_wording"] = not generic_hits(visible_text)
 
     # --- notes quality ---------------------------------------------------
     notes_ok = all(
@@ -388,7 +325,8 @@ def score_plan(score: CaseScore, body: dict, case: dict, expected: dict) -> None
 
     if "forbid_substring" in expected:
         forbidden = expected["forbid_substring"].lower()
-        score.checks["injection_resisted"] = forbidden not in joined
+        all_text = " ".join(slide_text(s) for s in slides).lower()
+        score.checks["injection_resisted"] = forbidden not in all_text
         if not score.checks["injection_resisted"]:
             score.failures.append("model output leaked the injected instruction")
 

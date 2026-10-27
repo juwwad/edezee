@@ -4,7 +4,7 @@
   "rubric": {
     "topic_coverage": "Every parsed topic produces exactly one slide, in order.",
     "schema_compliance": "Every slide has 1-5 bullets, a non-empty title, and speaker notes.",
-    "content_specificity": "No placeholder or boilerplate text (TBD, N/A, lorem, 'this topic').",
+    "content_specificity": "Every non-degraded slide has at least one bullet contributing three content words absent from its own title, so a slide cannot merely restate its topic. Placeholder wording on a non-degraded slide is scored separately as no_placeholder_leak. Generic phrasing (TBD, 'this topic') is recorded as the no_generic_wording signal, not a hard failure: a vague topic name legitimately produces abstract content.",
     "notes_quality": "Speaker notes exist, are at least 40 characters, and are not a copy of the bullets.",
     "grounding_recorded": "Every slide declares research | model-knowledge | placeholder.",
     "graceful_degradation": "Failures produce a flagged placeholder slide, never a crash or a silent drop.",

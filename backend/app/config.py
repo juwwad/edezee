@@ -8,14 +8,22 @@ hardcoded or written back to disk.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Look for backend/.env by absolute path as well as .env in the working
+# directory. Without this, running a script from the repository root (for
+# example `make baseline`) silently found no configuration and reported the key
+# as missing, even though backend/.env was correct. Later entries win, so a
+# .env in the working directory still overrides the backend one.
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(BACKEND_DIR / ".env", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
