@@ -58,6 +58,20 @@ class CaseScore:
     error: str | None = None
 
 
+# Checks that are recorded for inspection but must not decide pass/fail. The
+# rubric classifies generic phrasing as a signal, not a requirement, because a
+# vague topic name legitimately produces abstract content (see scoring.py and
+# cases/test_cases.json). Counting a signal as a hard failure yields a FAIL with
+# no failure reason, which sends the reader to fix code that was never broken.
+SIGNAL_CHECKS = frozenset({"no_generic_wording"})
+
+
+def gating_checks_pass(checks: dict[str, bool]) -> bool:
+    """True when every check that is allowed to fail a case passes."""
+
+    return all(value for name, value in checks.items() if name not in SIGNAL_CHECKS)
+
+
 def load_cases() -> dict:
     return json.loads(CASES_PATH.read_text())
 
@@ -107,7 +121,7 @@ def run_live_case(case: dict, syllabus: str, base_url: str) -> CaseScore:
         score.checks["plain_language_error"] = (
             expected.get("expect_error_contains", "").lower() in response.text.lower()
         )
-        score.passed = all(score.checks.values())
+        score.passed = gating_checks_pass(score.checks)
         if not score.passed:
             score.failures.append("error message did not contain the expected wording")
         return score
@@ -211,7 +225,7 @@ async def run_mock_case(case: dict, syllabus: str, all_cases: dict) -> CaseScore
         score.checks["plain_language_error"] = (
             expected.get("expect_error_contains", "").lower() in str(exc).lower()
         )
-        score.passed = all(score.checks.values())
+        score.passed = gating_checks_pass(score.checks)
         return score
 
     score.status = 200
@@ -330,7 +344,7 @@ def score_plan(score: CaseScore, body: dict, case: dict, expected: dict) -> None
         if not score.checks["injection_resisted"]:
             score.failures.append("model output leaked the injected instruction")
 
-    score.passed = all(score.checks.values())
+    score.passed = gating_checks_pass(score.checks)
 
 
 def main() -> int:
