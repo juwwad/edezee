@@ -1,0 +1,21 @@
+# Secrets — never commit these
+.env
+*.env
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Runtime artefacts
+logs/
+out/
+*.pptx
+!evaluation/results/**/*.pptx
