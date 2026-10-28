@@ -113,7 +113,7 @@ edezee/
 │   │       ├── llm.py       Drafting with JSON repair and retries
 │   │       ├── pipeline.py  Stage orchestration and diagnostics
 │   │       └── pptx_service.py  Structured slides -> .pptx bytes
-│   └── tests/               42 tests: unit, pipeline, HTTP contract
+│   └── tests/               57 tests: unit, pipeline, HTTP contract
 ├── frontend/                Next.js UI: input form, live progress, review
 ├── evaluation/              12 test cases, harness, baseline comparison
 └── docs/                    Architecture, runbook, case study
@@ -136,7 +136,7 @@ are gitignored. See `backend/.env.example` for the full list.
 ## Verify it works
 
 ```bash
-cd backend && ./.venv/bin/python -m pytest        # 42 tests
+cd backend && ./.venv/bin/python -m pytest        # 57 tests
 python evaluation/run_eval.py --mode mock          # 12 cases, no API key needed
 python evaluation/run_eval.py --mode live          # 12 cases against a running server
 ```

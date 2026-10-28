@@ -18,7 +18,7 @@ on intent. `docs/` holds the as-built documentation.
 # Backend
 cd backend
 python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
-./.venv/bin/python -m pytest              # 45 tests, must stay green
+./.venv/bin/python -m pytest              # 57 tests, must stay green
 ./run.sh                                  # serve on :8000
 
 # Frontend

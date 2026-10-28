@@ -249,7 +249,42 @@ any script run from the repository root found nothing.
 **Fix:** the config now resolves `backend/.env` by absolute path, with a working
 directory `.env` still taking precedence.
 
-### F-E — Recorded from the sprint, found by driving the UI
+### F-E — The results file counted skips as passes
+
+**Symptom:** `eval_results_live.json` recorded 12 cases as passed from a run that
+had executed 10. TC-08 and TC-12 are skipped in live mode by design, and each was
+written with `passed: true`.
+**Root cause:** the skip path built the case object with `passed=True`. The
+console summary filtered skipped cases out of the scored total, so the printed
+result (10/10) was correct — and the artifact disagreed with it. A reader who
+counted `passed` in the JSON got 12/12.
+**Why the tests missed it:** no test read the results file. The mock run skips
+nothing, so the defect was invisible to the suite that exercised the same code.
+**Fix:** `serialize_case()` forces `passed=False` and `outcome="skip"` for a
+skipped case, and every result now carries an explicit `pass`/`fail`/`skip`
+outcome. The rule lives in the serializer rather than only at the construction
+site, because the artifact is what a reader trusts.
+**How it was found:** by re-running the gates on a clean clone of `main` and
+reading the JSON, rather than the console output.
+
+### F-F — The injection detector reported our own error text as a leak
+
+**Symptom:** during the 2026-10-28 proxy outage, TC-11 reported both "model output
+leaked the injected instruction" and 2 degraded slides — although the model had
+produced no output at all.
+**Root cause:** the check scanned every slide, including degraded placeholders. A
+placeholder sets `slide_title` to the topic and quotes the failure reason, and the
+hostile topic *is* the forbidden string. The detector matched our own error
+message.
+**Why it matters:** the false positive fires precisely when the provider is down,
+turning a clean infrastructure failure into a fabricated security finding. The
+signal was least trustworthy when it mattered most.
+**Fix:** the check scans only slides the model actually produced. When nothing was
+produced it returns "not demonstrated" rather than a pass, so an outage cannot
+read as either a leak or a success. Covered by four tests in
+`TestInjectionCheckScope`.
+
+### F-G — Recorded from the sprint, found by driving the UI
 
 F1–F5 in `docs/case-study.md` cover the pipeline defects. F5 is the one worth
 repeating here: the UI rendered zero slides after a successful run, and every unit
@@ -259,8 +294,8 @@ test passed. It was found by driving the real browser, not by inspection.
 
 ## 6. Tests for the evaluators
 
-`evaluation/harness_tests/` holds 17 tests covering the scoring heuristics and the
-injection detector. They exist so a change to the scoring logic cannot quietly
+`evaluation/harness_tests/` holds 35 tests covering the scoring heuristics, the
+injection detector, and the runner's own reporting. They exist so a change to the scoring logic cannot quietly
 turn a failing case green.
 
 Three of them pin the signal/gate split: generic wording is recorded as a signal
@@ -276,7 +311,7 @@ obeying it — is *not* counted as a leak.
 make test     # backend suite + evaluation-harness tests
 ```
 
-Backend: 48 passed. Harness: 17 passed.
+Backend: 57 passed. Harness: 35 passed.
 
 ---
 
@@ -290,6 +325,15 @@ Backend: 48 passed. Harness: 17 passed.
 - **Research was disabled** for these runs (`TAVILY_API_KEY` unset), so every
   slide reports `model-knowledge`. The research path is implemented, wired, and
   covered by F3's fix, but the numbers here do not exercise it.
+- **The live numbers are a point-in-time record, not a live guarantee.** They were
+  produced on 2026-10-27 against the managed proxy with `deepseek-v4.1-flash`. On
+  2026-10-28 the proxy began rejecting both permitted models with
+  `403 PermissionDeniedError: Request rejected by proxy policy`, for every
+  request including a one-word prompt. That is an access-policy change outside
+  this repository, not a regression in the pipeline: the system degrades exactly
+  as designed, producing flagged placeholder slides and finishing the run rather
+  than crashing. Re-running `make eval-live` requires the model access to be
+  restored; `make eval` and `make mock-eval` are unaffected.
 - **The injected topic is one attack string.** It demonstrates the class of
   failure; it does not establish robustness against prompt injection generally.
 
