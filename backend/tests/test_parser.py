@@ -70,7 +70,27 @@ def test_keeps_long_prose_line_intact():
         ("a) Vectors", "Vectors"),
         ("Module 4 - Neural networks", "Neural networks"),
         ("1.1) Limits and continuity", "Limits and continuity"),
+        ("A - Introduction", "Introduction"),
+        ("1 - Foundations", "Foundations"),
     ],
 )
 def test_enumerator_variants(raw, expected_first):
     assert parse_topics(raw)[0] == expected_first
+
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        "X-ray crystallography",
+        "e-learning platforms",
+        "A-level physics",
+        "T-shirt design",
+        "B-tree indexes",
+        "3-D printing",
+        "2-factor authentication",
+    ],
+)
+def test_keeps_hyphenated_topics_intact(topic):
+    # A hyphen inside a word is part of the topic, not an enumerator separator.
+    assert parse_topics(topic) == [topic]
+    assert parse_topics(f"1. {topic}") == [topic]
