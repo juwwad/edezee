@@ -18,12 +18,16 @@ _NOISE_PATTERNS = [
 ]
 
 # Leading enumerators: "1.", "1)", "1.1", "Week 3:", "a)".
+# A dash separates the enumerator only when it is whitespace-delimited
+# ("A - Introduction", "1 - Foundations"). Without that rule a single leading
+# letter or digit followed by a hyphen is eaten from real topics such as
+# "X-ray crystallography", "e-learning", "B-tree indexes", or "3-D printing".
 _ENUMERATOR = re.compile(
     r"^\s*(?:"
     r"(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+"
     r"|\d+(?:\.\d+)*"
     r"|[a-zA-Z]"
-    r")\s*[.):\-–—]\s*",
+    r")(?:\s*[.):]\s*|\s+[-–—]\s+)",
     re.I,
 )
 
