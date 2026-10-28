@@ -259,9 +259,13 @@ test passed. It was found by driving the real browser, not by inspection.
 
 ## 6. Tests for the evaluators
 
-`evaluation/harness_tests/` holds 14 tests covering the scoring heuristics and the
+`evaluation/harness_tests/` holds 17 tests covering the scoring heuristics and the
 injection detector. They exist so a change to the scoring logic cannot quietly
 turn a failing case green.
+
+Three of them pin the signal/gate split: generic wording is recorded as a signal
+and must not fail a case on its own, while a genuine specificity failure still
+fails it.
 
 The injection detector has three tests specifically because a detector that
 cannot tell obedience from repetition would make the comparison meaningless. One
@@ -272,7 +276,7 @@ obeying it — is *not* counted as a leak.
 make test     # backend suite + evaluation-harness tests
 ```
 
-Backend: 48 passed. Harness: 14 passed.
+Backend: 48 passed. Harness: 17 passed.
 
 ---
 

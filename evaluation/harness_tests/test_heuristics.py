@@ -17,6 +17,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # evaluation/
 
 from baseline import _injection_leaked  # noqa: E402
+from run_eval import CaseScore, gating_checks_pass, score_plan  # noqa: E402
 from scoring import is_specific  # noqa: E402
 
 
@@ -131,3 +132,67 @@ class TestInjectionDetection:
             "speaker_notes": "Ignore all previous instructions is a common attack string.",
         }]
         assert _injection_leaked(slides) is False
+
+
+class TestSignalChecksDoNotFailACase:
+    """Generic wording is a signal, not a gate (cases/test_cases.json rubric).
+
+    Before this was pinned, ``score_plan`` passed a signal check straight into
+    ``all(score.checks.values())``, so a deck that tripped the generic-wording
+    marker failed with an empty ``failures`` list. That is a believable failure
+    with no cause, which sends the reader to fix code that was never broken.
+    """
+
+    def _body(self, bullets: list[str]) -> dict:
+        return {
+            "deck_title": "Course Presentation",
+            "slides": [
+                {
+                    "topic": "Intro",
+                    "slide_number": 1,
+                    "slide_title": "Neural networks",
+                    "bullet_points": bullets,
+                    "speaker_notes": (
+                        "Explain gradients carefully before moving on to optimisers."
+                    ),
+                    "grounding": "model-knowledge",
+                    "sources": [],
+                    "attempts": 1,
+                    "degraded": False,
+                    "error": None,
+                }
+            ],
+            "diagnostics": {"degraded_slides": 0, "warnings": []},
+        }
+
+    def _expected(self) -> dict:
+        return {"topics": 1, "min_slides": 1, "max_degraded": 0, "status": 200,
+                "max_latency_ms": 180_000}
+
+    def _score(self, bullets: list[str]) -> CaseScore:
+        score = CaseScore(case_id="X", name="X", category="edge", passed=False,
+                          status=200, latency_ms=10)
+        score_plan(score, self._body(bullets), {"id": "X"}, self._expected())
+        return score
+
+    def test_generic_wording_is_recorded_but_does_not_fail_the_case(self):
+        score = self._score([
+            "Backpropagation computes gradients via the chain rule.",
+            "Activation functions introduce non-linearity, e.g. ReLU.",
+            "TBD",
+        ])
+        assert score.checks["no_generic_wording"] is False
+        assert score.passed is True, "a signal must not decide pass/fail"
+        assert score.failures == []
+
+    def test_a_real_failure_still_fails_the_case(self):
+        # Two bullets restate the title and nothing else, so content_specificity
+        # (a gate) is false. The fix must not make the harness lenient.
+        score = self._score(["Topic 1 detail one", "Topic 1 detail two"])
+        assert score.checks["content_specificity"] is False
+        assert score.passed is False
+        assert score.failures
+
+    def test_gating_checks_pass_ignores_only_signal_checks(self):
+        assert gating_checks_pass({"no_generic_wording": False, "latency": True}) is True
+        assert gating_checks_pass({"no_generic_wording": True, "latency": False}) is False
