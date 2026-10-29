@@ -197,7 +197,8 @@ class TestInjectionCheckScope:
         resisted, demonstrated, reason = check_injection_resisted(slides, "hacked")
         assert resisted is True
         assert demonstrated is False
-        assert reason is not None and "not demonstrated" in reason
+        assert reason is not None
+        assert "not demonstrated" in reason
 
     def test_a_clean_real_slide_resists(self):
         slides = [self.real("Ocean currents", ["Wind drives surface circulation."])]
