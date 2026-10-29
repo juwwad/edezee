@@ -5,7 +5,7 @@ Repo: `github.com/juwwad/edezee`. Syllabus → `.pptx` generator. 5-day sprint, 
 ## Key facts
 - Backend: FastAPI + `python-pptx` in `backend/` (venv at `backend/.venv`, Python 3.13).
 - Frontend: Next.js 16 App Router + Tailwind 4 + React 19 in `frontend/`. **Not** static export; `npm start` works.
-- Tests: `cd backend && ./.venv/bin/python -m pytest` → 45 passing.
+- Tests: `cd backend && ./.venv/bin/python -m pytest` → 64 passing; harness `backend/.venv/bin/python -m pytest evaluation/harness_tests` → 35 passing.
 - Eval gate: `backend/.venv/bin/python evaluation/run_eval.py --mode mock` → 12/12, no API key needed. This is the quality gate; treat failure as top priority.
 - `--mode live` needs a running backend + `OPENROUTER_API_KEY`. Takes ~5–8 min for all 12 cases (TC-07/TC-08 are 12 and 40 topics).
 - Model in use: `deepseek-v4.1-flash` via `https://llm-proxy.app.all-hands.dev`. Only `deepseek-v4.1-flash` and `deepseek-v4-flash` are available.

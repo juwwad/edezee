@@ -3,7 +3,7 @@
 ## Current Status
 - **Phase:** Phase 6 (Handoff & Documentation) — the build is complete; the
   remaining work is the demo video and the final submission.
-- **Overall State:** The system runs end to end. 57 backend tests and 31
+- **Overall State:** The system runs end to end. 64 backend tests and 35
   evaluation-harness tests pass. The offline evaluation gate passes 12/12;
   the live gate passes 10/10 executed cases (2 skipped by design).
 - **Submission deadline:** Friday 30 October 2026.

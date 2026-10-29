@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = Field(default=90.0, gt=0)
     max_topics: int = Field(default=40, ge=1, le=200)
     inter_topic_delay_seconds: float = Field(default=0.0, ge=0)
+    # Off by default. When on, the app serves deterministic sample content with
+    # no API key so a reviewer can exercise the full flow (see services/demo.py).
+    demo_mode: bool = False
 
     # --- Server ----------------------------------------------------------
     allowed_origins: str = "http://localhost:3000"
@@ -59,7 +62,9 @@ class Settings(BaseSettings):
 
     @property
     def llm_configured(self) -> bool:
-        return bool(self.openrouter_api_key.strip())
+        # Demo mode is a deliberate substitute for a real key, so the health
+        # check and the UI gate treat the app as ready when it is on.
+        return bool(self.openrouter_api_key.strip()) or self.demo_mode
 
     @property
     def research_configured(self) -> bool:

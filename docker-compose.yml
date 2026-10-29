@@ -1,0 +1,31 @@
+# One-command local or demo deployment: `docker compose up --build`.
+#
+# The two settings that must agree are NEXT_PUBLIC_API_BASE_URL (how the browser
+# reaches the API) and ALLOWED_ORIGINS (how the API accepts the UI's origin). If
+# one changes, change the other, or every request is blocked by CORS.
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Set DEMO_MODE=true to serve sample slides with no API key.
+      DEMO_MODE: "${DEMO_MODE:-false}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      TAVILY_API_KEY: "${TAVILY_API_KEY:-}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:3000}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health').status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: "${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend

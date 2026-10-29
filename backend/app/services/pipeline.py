@@ -94,6 +94,10 @@ class Pipeline:
             warnings.append(
                 "Web research is disabled, so slides rely on the model's own knowledge."
             )
+        if self._settings.demo_mode:
+            warnings.append(
+                "Demo mode is on: these slides are fixed sample content, not model output."
+            )
 
         await self._emit(on_progress, "parsing", f"Parsing {len(topics)} topics...", 0, len(topics))
 

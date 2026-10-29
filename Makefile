@@ -1,4 +1,4 @@
-.PHONY: help dev backend frontend test eval mock-eval baseline clean install
+.PHONY: help dev backend frontend test eval mock-eval baseline clean install up down
 
 help:
 	@echo "Edezee — common tasks"
@@ -7,6 +7,8 @@ help:
 	@echo "  make dev        Run backend (:8000) and frontend (:3000) together"
 	@echo "  make backend    Run the API only"
 	@echo "  make frontend   Run the UI only"
+	@echo "  make up         Build and run both services in Docker"
+	@echo "  make down       Stop the Docker services"
 	@echo "  make test       Run the backend test suite"
 	@echo "  make mock-eval  Run the 12-case evaluation set offline (no API key)"
 	@echo "  make eval       Run the 12-case evaluation set against a live server"
@@ -30,6 +32,13 @@ dev:
 	( cd backend && ./run.sh ) & \
 	( cd frontend && npm run dev ) & \
 	wait
+
+# Build and run both services as containers, then Ctrl-C (or `make down`) stops them.
+up:
+	docker compose up --build
+
+down:
+	docker compose down
 
 test:
 	cd backend && ./.venv/bin/python -m pytest

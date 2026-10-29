@@ -21,7 +21,7 @@ evidence rather than trusting summaries.
 
 - **Implementation.** All application code: parser, research client, LLM client,
   pipeline, PPTX compiler, FastAPI routes, Next.js UI.
-- **Test authoring.** The 57 backend tests and the 12-case evaluation set.
+- **Test authoring.** The 64 backend tests and the 12-case evaluation set.
 - **Measurement.** Running the evaluation harness and reporting raw numbers.
 - **Documentation drafts.** README, architecture, runbook, this note.
 
