@@ -263,6 +263,33 @@ slide *content*, so the review list had nothing to render.
 unit test would have caught a contract gap between two components that each passed
 their own tests.
 
+### F6 — The results file reported skips as passes
+
+**Symptom:** `eval_results_live.json` recorded 12 passed from a run that executed
+10 cases. The two live-mode skips were written with `passed: true`.
+**Root cause:** the skip path built the case object with `passed=True`. The console
+summary filtered skips out of the scored total, so the printed `10/10` was right
+and the artifact disagreed with it.
+**Fix:** the serializer forces `passed=False` and `outcome="skip"` for a skipped
+case, and every result now carries an explicit `pass`/`fail`/`skip` outcome.
+**Why it matters:** the console was honest and the file was not. Anyone auditing
+the JSON — which is the artifact the rubric asks for — would have read a result
+better than the run actually was. A measurement bug that flatters the system is
+the most damaging kind, because nothing else in the pipeline looks wrong.
+
+### F7 — The injection detector reported our own error text as a leak
+
+**Symptom:** during a provider outage, TC-11 reported *"model output leaked the
+injected instruction"* while the model had produced no output at all.
+**Root cause:** the check scanned degraded placeholders. A placeholder echoes its
+topic, and the hostile topic is the forbidden string, so the detector matched our
+own error message.
+**Fix:** the check scans only slides the model produced, and a new
+`injection_demonstrated` gate stops a run that generated nothing from passing.
+**Why it matters:** the false positive fires exactly when the provider is down.
+A fabricated security finding during an outage is worse than no signal, because it
+sends the reader to the wrong problem.
+
 ---
 
 ## 7. Limitations
@@ -280,6 +307,13 @@ their own tests.
 5. **Single template.** Correct for legibility, restrictive for someone who wants
    a branded deck.
 6. **One deck per request, in memory.** A 40-topic deck is the practical ceiling.
+7. **The live numbers are a dated record.** They were produced on 2026-10-27
+   against the managed proxy. On 2026-10-28 the proxy began rejecting both
+   permitted models with `403 PermissionDeniedError: Request rejected by proxy
+   policy`, for every request. That is an access-policy change outside the
+   repository; the system degrades as designed rather than crashing. Reproducing
+   the live numbers requires the model access to be restored, and the offline
+   gates (`make eval`, `make mock-eval`) are unaffected.
 
 ---
 

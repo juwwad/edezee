@@ -49,7 +49,7 @@ cd backend && ./.venv/bin/python -m pytest
 cd .. && python evaluation/run_eval.py --mode mock
 ```
 
-A green health check plus 42 passing tests plus 12/12 mock cases means the
+A green health check plus 57 passing tests plus 12/12 mock cases means the
 pipeline, the validation logic, and the failure handling are all intact.
 
 ## 4. Common problems

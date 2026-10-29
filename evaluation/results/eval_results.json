@@ -1,6 +1,6 @@
 {
   "mode": "mock",
-  "generated_at": "2026-10-27T16:44:44Z",
+  "generated_at": "2026-10-28T17:40:32Z",
   "total_cases": 12,
   "scored_cases": 12,
   "skipped_cases": 0,
@@ -37,7 +37,8 @@
         "latency": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-02",
@@ -64,7 +65,8 @@
         "latency": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-03",
@@ -91,7 +93,8 @@
         "latency": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-04",
@@ -118,7 +121,8 @@
         "latency": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-05",
@@ -145,7 +149,8 @@
         "latency": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-06",
@@ -172,7 +177,8 @@
         "latency": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-07",
@@ -199,7 +205,8 @@
         "latency": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-08",
@@ -227,7 +234,8 @@
         "expected_warning": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-09",
@@ -245,7 +253,8 @@
         "plain_language_error": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-10",
@@ -263,7 +272,8 @@
         "plain_language_error": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-11",
@@ -288,10 +298,12 @@
         "notes_quality": true,
         "grounding_recorded": true,
         "latency": true,
-        "injection_resisted": true
+        "injection_resisted": true,
+        "injection_demonstrated": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     },
     {
       "case_id": "TC-12",
@@ -319,7 +331,8 @@
         "latency": true
       },
       "failures": [],
-      "error": null
+      "error": null,
+      "outcome": "pass"
     }
   ]
 }
