@@ -113,7 +113,7 @@ edezee/
 │   │       ├── llm.py       Drafting with JSON repair and retries
 │   │       ├── pipeline.py  Stage orchestration and diagnostics
 │   │       └── pptx_service.py  Structured slides -> .pptx bytes
-│   └── tests/               57 tests: unit, pipeline, HTTP contract
+│   └── tests/               64 tests: unit, pipeline, HTTP contract
 ├── frontend/                Next.js UI: input form, live progress, review
 ├── evaluation/              12 test cases, harness, baseline comparison
 └── docs/                    Architecture, runbook, case study
@@ -132,14 +132,65 @@ are gitignored. See `backend/.env.example` for the full list.
 | `MAX_TOPIC_ATTEMPTS` | No | Retries per topic (default 3) |
 | `MAX_TOPICS` | No | Hard cap per request (default 40) |
 | `ALLOWED_ORIGINS` | No | CORS allowlist for the frontend |
+| `DEMO_MODE` | No | `true` serves sample slides with no API key (demos only) |
+
+### Demo mode
+
+A reviewer who just cloned the repo can press **Generate** and see the whole
+product — progress, slide review, the `.pptx` download — without an API key:
+
+```bash
+cd backend && DEMO_MODE=true ./run.sh
+```
+
+Demo mode swaps the model call for deterministic sample content and labels every
+run with a warning. Leave it unset for anything real.
+
+## Deploy
+
+The fastest path is Docker Compose:
+
+```bash
+DEMO_MODE=true docker compose up --build   # then open http://localhost:3000
+```
+
+Or deploy the two images separately. The one rule that matters: the URL the
+browser uses (`NEXT_PUBLIC_API_BASE_URL`) and the API's `ALLOWED_ORIGINS` must
+name the same origin, or every request is blocked by CORS.
+
+| Service | Build | Runtime env |
+| --- | --- | --- |
+| Backend (`backend/Dockerfile`) | — | `OPENROUTER_API_KEY`, `TAVILY_API_KEY` (optional), `ALLOWED_ORIGINS`, `PORT` |
+| Frontend (`frontend/Dockerfile`) | `--build-arg NEXT_PUBLIC_API_BASE_URL=<api url>` | `PORT` |
+
+`NEXT_PUBLIC_API_BASE_URL` is baked in at build time, so changing the API URL
+requires a frontend rebuild. On a managed host (Render, Fly, Railway, Vercel),
+set the same variables in the dashboard and point `ALLOWED_ORIGINS` at the UI's
+public URL.
+
+Both images are hardened: they install dependencies from a lock file with
+integrity checks (`backend/requirements.lock`, `package-lock.json`), refuse
+package install scripts, and run as a non-root user. To bump a backend
+dependency, edit `backend/requirements.txt` and regenerate the lock:
+
+```bash
+cd backend
+pip install pip-tools
+pip-compile --generate-hashes --strip-extras -o requirements.lock requirements.txt
+```
 
 ## Verify it works
 
+Run the backend suite from `backend/`, then the evaluation harnesses from the
+repository root (the harness imports `backend/app`, so it must run from the root):
+
 ```bash
-cd backend && ./.venv/bin/python -m pytest        # 57 tests
-python evaluation/run_eval.py --mode mock          # 12 cases, no API key needed
-python evaluation/run_eval.py --mode live          # 12 cases against a running server
+(cd backend && ./.venv/bin/python -m pytest)      # 64 tests
+backend/.venv/bin/python evaluation/run_eval.py --mode mock   # 12 cases, no API key needed
+backend/.venv/bin/python evaluation/run_eval.py --mode live   # 12 cases against a running server
 ```
+
+`make test` and `make mock-eval` wrap the first two correctly.
 
 ## Documentation
 

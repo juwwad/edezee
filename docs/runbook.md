@@ -41,15 +41,31 @@ To run the UI on a different machine than the API, set
 `NEXT_PUBLIC_API_BASE_URL` in `frontend/.env.local` and add the UI's origin to
 `ALLOWED_ORIGINS` in `backend/.env`, then restart the backend.
 
+### Run it as containers
+
+```bash
+# Demo, no API key needed. Open http://localhost:3000
+DEMO_MODE=true docker compose up --build
+
+# Real run
+OPENROUTER_API_KEY=sk-... docker compose up --build
+```
+
+The two images build from `backend/Dockerfile` and `frontend/Dockerfile`. To
+host them separately, build the frontend with the public API URL
+(`--build-arg NEXT_PUBLIC_API_BASE_URL=https://api.example.com`) and set the
+backend's `ALLOWED_ORIGINS` to the UI's public origin. Those two values must
+agree, or the browser blocks every request (see §4, "Not allowed by CORS").
+
 ## 3. Daily checks (two minutes)
 
 ```bash
 curl -s localhost:8000/api/v1/health | jq -c '.status, .llm_configured'
-cd backend && ./.venv/bin/python -m pytest
-cd .. && python evaluation/run_eval.py --mode mock
+(cd backend && ./.venv/bin/python -m pytest)
+backend/.venv/bin/python evaluation/run_eval.py --mode mock
 ```
 
-A green health check plus 57 passing tests plus 12/12 mock cases means the
+A green health check plus 64 passing tests plus 12/12 mock cases means the
 pipeline, the validation logic, and the failure handling are all intact.
 
 ## 4. Common problems

@@ -112,6 +112,49 @@ def test_unknown_depth_is_rejected_with_a_string_detail(client):
     assert isinstance(response.json()["detail"], str)
 
 
+def test_unknown_depth_does_not_leak_the_pydantic_enum_message(client):
+    response = client.post(
+        "/api/v1/generate", json={"syllabus_text": "1. Real topic", "depth": "Extreme"}
+    )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "Input should be" not in detail
+    assert "High-level" in detail or "options" in detail.lower()
+
+
+def test_oversized_syllabus_does_not_leak_the_pydantic_length_message(client):
+    response = client.post(
+        "/api/v1/generate", json={"syllabus_text": "x" * 20_001}
+    )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "at most" not in detail
+    assert "too long" in detail.lower()
+
+
+def test_oversized_deck_title_does_not_leak_the_pydantic_length_message(client):
+    response = client.post(
+        "/api/v1/generate",
+        json={"syllabus_text": "1. Real topic", "deck_title": "t" * 201},
+    )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "at most" not in detail
+    assert "title" in detail.lower()
+
+
+def test_malformed_json_body_returns_a_plain_message(client):
+    response = client.post(
+        "/api/v1/generate",
+        content="{not json",
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert isinstance(detail, str)
+    assert "JSON decode error" not in detail
+
+
 def test_unparseable_syllabus_returns_plain_language_error(client):
     response = client.post("/api/v1/generate", json={"syllabus_text": "---\n===\n#\n"})
     assert response.status_code == 422
@@ -167,6 +210,43 @@ def test_missing_api_key_returns_actionable_error():
         response = test_client.post("/api/v1/generate", json={"syllabus_text": "1. Real topic"})
     assert response.status_code == 422
     assert "OPENROUTER_API_KEY" in response.json()["detail"]
+
+
+def test_demo_mode_generates_a_deck_with_no_api_key():
+    """DEMO_MODE must let a reviewer exercise the full flow without a secret."""
+    settings = make_settings(openrouter_api_key="", demo_mode=True)
+    app = create_app(settings)
+    with TestClient(app) as test_client:
+        health = test_client.get("/api/v1/health").json()
+        assert health["llm_configured"] is True
+
+        response = test_client.post(
+            "/api/v1/generate",
+            json={"syllabus_text": "1. Vector databases\n2. Chunking strategies", "depth": "High-Level"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == PPTX_MIME
+    assert response.content[:2] == b"PK", "the response must be a real .pptx (zip) payload"
+
+
+def test_demo_mode_slides_carry_a_sample_content_warning():
+    settings = make_settings(openrouter_api_key="", demo_mode=True)
+    app = create_app(settings)
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            "/api/v1/generate/plan", json={"syllabus_text": "1. Real topic"}
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["diagnostics"]["slides_generated"] == 1
+    assert any("sample content" in w.lower() for w in body["diagnostics"]["warnings"])
+    assert body["slides"][0]["slide_title"]
+
+
+def test_demo_mode_off_by_default_keeps_the_missing_key_error():
+    settings = make_settings(openrouter_api_key="")
+    assert settings.llm_configured is False
 
 
 def test_cors_allows_configured_origin(client):

@@ -63,7 +63,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings
-    app.state.pipeline = Pipeline(settings)
+    if settings.demo_mode:
+        from app.services.demo import build_demo_llm
+
+        app.state.pipeline = Pipeline(settings, llm=build_demo_llm(settings))
+        logger.warning("DEMO_MODE is on: serving deterministic sample content, no model calls.")
+    else:
+        app.state.pipeline = Pipeline(settings)
 
     app.add_middleware(
         CORSMiddleware,
@@ -81,19 +87,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Return one plain-language sentence instead of a Pydantic error array.
 
         The UI reads `detail` as a string. Leaking the raw array would put
-        "String should have at least 1 character" in front of a teacher.
+        "String should have at most 20000 characters" in front of a teacher, so
+        every Pydantic error type we can trigger is mapped to our own wording.
         """
-        message = "That request could not be read. Please check the topics and try again."
-        for error in exc.errors():
-            raw = error.get("msg", "")
-            # Strip Pydantic's "Value error, " prefix so our own wording shows through.
-            cleaned = raw.removeprefix("Value error, ").strip()
-            if cleaned and not cleaned.startswith("Field required"):
-                message = cleaned
-                break
-            if cleaned.startswith("Field required"):
-                message = "No syllabus topics were sent. Please paste at least one topic."
-                break
+        message = _plain_message(exc.errors())
         logger.info("Rejected request %s: %s", request.url.path, message)
         return JSONResponse(status_code=422, content={"detail": message})
 
@@ -241,6 +238,55 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
+
+
+# Maps the Pydantic error types reachable from our request models to text a
+# teacher can act on. Keys are `error["type"]` values, not messages, so this
+# keeps working when Pydantic rewords its built-in strings.
+_VALIDATION_MESSAGES = {
+    "json_invalid": "That request could not be read. Please try the request again.",
+    "missing": "No syllabus topics were sent. Please paste at least one topic.",
+    "string_too_long": "That text is too long. Please shorten it and try again.",
+    "string_too_short": "Please add some text and try again.",
+    "enum": "Choose one of the offered options and try again.",
+    "literal_error": "Choose one of the offered options and try again.",
+    "list_type": "One of the fields was not formatted correctly. Please try again.",
+    "string_type": "One of the fields was not formatted correctly. Please try again.",
+}
+
+_DEFAULT_INVALID_MESSAGE = (
+    "That request could not be read. Please check the topics and try again."
+)
+
+
+def _plain_message(errors: list[dict]) -> str:
+    """Turn the first Pydantic error into one plain-language sentence.
+
+    A custom ``ValueError`` raised by a field validator is our own prose, so it
+    is returned untouched. Everything else is mapped by ``type`` and sharpened
+    with the field name where a generic sentence would be ambiguous.
+    """
+    if not errors:
+        return _DEFAULT_INVALID_MESSAGE
+
+    first = errors[0]
+    raw = str(first.get("msg", ""))
+    if raw.startswith("Value error, "):
+        # Our own validator wording, written for the user.
+        return raw.removeprefix("Value error, ").strip() or _DEFAULT_INVALID_MESSAGE
+
+    error_type = first.get("type", "")
+    message = _VALIDATION_MESSAGES.get(error_type, _DEFAULT_INVALID_MESSAGE)
+
+    if error_type in {"string_too_long", "string_too_short"}:
+        field = str(first.get("loc", ("",))[-1])
+        labels = {
+            "syllabus_text": "That syllabus is too long. Use 40 topics or fewer and try again.",
+            "deck_title": "That deck title is too long. Please shorten it and try again.",
+        }
+        message = labels.get(field, message)
+
+    return message
 
 
 def _filename(deck_title: str) -> str:

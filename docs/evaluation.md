@@ -311,7 +311,7 @@ obeying it — is *not* counted as a leak.
 make test     # backend suite + evaluation-harness tests
 ```
 
-Backend: 57 passed. Harness: 35 passed.
+Backend: 64 passed. Harness: 35 passed.
 
 ---
 
