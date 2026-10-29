@@ -42,6 +42,16 @@ cp .env.example .env          # then edit .env and set OPENROUTER_API_KEY
 ./run.sh                      # creates a venv, installs deps, serves on :8000
 ```
 
+On Windows, `run.sh` is a bash script and `python3` may not exist. Use the
+PowerShell equivalent instead — it does the same thing with the Windows venv
+layout (`Scripts\`):
+
+```powershell
+cd backend
+Copy-Item .env.example .env   # then edit .env and set OPENROUTER_API_KEY
+.\run.ps1                     # creates a venv, installs deps, serves on :8000
+```
+
 ### 2. Start the frontend
 
 In a second terminal:
@@ -66,6 +76,10 @@ When the deck is ready, press **Download .pptx**.
 ```bash
 make dev        # starts both services; Ctrl-C stops both
 ```
+
+`make` is not installed by default on Windows. There, start the two services in
+separate terminals (`.\run.ps1` and `npm run dev`), or use Docker
+(`docker compose up --build`).
 
 ---
 
@@ -113,6 +127,8 @@ edezee/
 │   │       ├── llm.py       Drafting with JSON repair and retries
 │   │       ├── pipeline.py  Stage orchestration and diagnostics
 │   │       └── pptx_service.py  Structured slides -> .pptx bytes
+│   ├── run.sh               Start the API (macOS/Linux)
+│   ├── run.ps1              Start the API (Windows / PowerShell)
 │   └── tests/               64 tests: unit, pipeline, HTTP contract
 ├── frontend/                Next.js UI: input form, live progress, review
 ├── evaluation/              12 test cases, harness, baseline comparison
@@ -141,6 +157,14 @@ product — progress, slide review, the `.pptx` download — without an API key:
 
 ```bash
 cd backend && DEMO_MODE=true ./run.sh
+```
+
+On Windows (PowerShell):
+
+```powershell
+cd backend
+$env:DEMO_MODE = "true"
+.\run.ps1
 ```
 
 Demo mode swaps the model call for deterministic sample content and labels every

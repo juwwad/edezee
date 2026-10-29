@@ -29,7 +29,7 @@ curl -s http://localhost:8000/api/v1/health | jq
 make dev
 
 # Or individually
-cd backend && ./run.sh        # :8000
+cd backend && ./run.sh        # :8000   (Windows: .\run.ps1)
 cd frontend && npm run dev    # :3000
 
 # Stop a service started in the background
