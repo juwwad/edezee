@@ -3,7 +3,8 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# --ignore-scripts: no dependency may run a lifecycle script at install time.
+RUN npm ci --ignore-scripts
 
 FROM node:22-alpine AS build
 WORKDIR /app
@@ -16,6 +17,8 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
-COPY --from=build /app ./
+COPY --from=build --chown=node:node /app ./
+# The base image already provides an unprivileged `node` user (uid 1000).
+USER node
 EXPOSE 3000
 CMD ["sh", "-c", "npm run start -- -p ${PORT}"]

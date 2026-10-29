@@ -7,9 +7,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock ./
+
+# Install from the hash-locked file and refuse source distributions, so no
+# dependency can run a setup.py at install time. Regenerate the lock with:
+#   pip-compile --generate-hashes --strip-extras -o requirements.lock requirements.txt
+RUN pip install --no-cache-dir --only-binary :all: --require-hashes -r requirements.lock
 
 COPY app ./app
 

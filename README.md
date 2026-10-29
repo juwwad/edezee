@@ -168,6 +168,17 @@ requires a frontend rebuild. On a managed host (Render, Fly, Railway, Vercel),
 set the same variables in the dashboard and point `ALLOWED_ORIGINS` at the UI's
 public URL.
 
+Both images are hardened: they install dependencies from a lock file with
+integrity checks (`backend/requirements.lock`, `package-lock.json`), refuse
+package install scripts, and run as a non-root user. To bump a backend
+dependency, edit `backend/requirements.txt` and regenerate the lock:
+
+```bash
+cd backend
+pip install pip-tools
+pip-compile --generate-hashes --strip-extras -o requirements.lock requirements.txt
+```
+
 ## Verify it works
 
 Run the backend suite from `backend/`, then the evaluation harnesses from the
