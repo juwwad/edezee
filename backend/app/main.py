@@ -290,7 +290,12 @@ def _plain_message(errors: list[dict]) -> str:
 
 
 def _filename(deck_title: str) -> str:
-    safe = "".join(ch if ch.isalnum() or ch in " -_" else "" for ch in deck_title).strip()
+    # ``Content-Disposition`` is a latin-1 header, so the filename must be ASCII:
+    # ``str.isalnum()`` is true for CJK and accented letters, and keeping them
+    # made Starlette raise UnicodeEncodeError and the endpoint return HTTP 500.
+    safe = "".join(
+        ch if ch.isascii() and (ch.isalnum() or ch in " -_") else "" for ch in deck_title
+    ).strip()
     safe = (safe or "edezee-presentation").replace(" ", "_")
     return f"{safe}_{int(time.time())}.pptx"
 

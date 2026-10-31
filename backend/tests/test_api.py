@@ -64,6 +64,36 @@ def test_generate_returns_pptx_attachment(client):
     assert diagnostics["degraded_slides"] == 0
 
 
+def test_non_latin_deck_title_still_returns_a_downloadable_deck(client):
+    """A non-Latin title must not crash the download.
+
+    ``Content-Disposition`` is encoded as latin-1, so a filename containing CJK
+    or other non-latin-1 characters raised UnicodeEncodeError and turned a valid
+    request into HTTP 500.
+    """
+    response = client.post(
+        "/api/v1/generate",
+        json={
+            "syllabus_text": "1. Topic 1\n2. Topic 2",
+            "deck_title": "课程演示",
+        },
+    )
+    assert response.status_code == 200
+    disposition = response.headers["content-disposition"]
+    assert disposition.encode("latin-1")  # the header itself must be encodable
+    assert disposition.endswith('.pptx"')
+
+
+def test_accented_deck_title_produces_an_ascii_filename(client):
+    response = client.post(
+        "/api/v1/generate",
+        json={"syllabus_text": "1. Topic 1\n2. Topic 2", "deck_title": "Überblick über KI"},
+    )
+    assert response.status_code == 200
+    disposition = response.headers["content-disposition"]
+    assert disposition.isascii(), disposition
+
+
 def test_generate_plan_returns_structured_json(client):
     response = client.post(
         "/api/v1/generate/plan",
