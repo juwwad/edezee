@@ -258,3 +258,80 @@ def test_cors_allows_configured_origin(client):
         },
     )
     assert response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+
+# --- Demo provider -------------------------------------------------------
+#
+# The demo provider is what a reviewer without an API key sees first, so its
+# output is part of the product surface. These tests pin the properties that
+# make it usable in a recording: known topics get distinct real content, the
+# depth toggle changes the deck, and the same input always replays the same way.
+
+
+def _demo_plan(syllabus_text: str, depth: str = "High-Level"):
+    settings = make_settings(openrouter_api_key="", demo_mode=True)
+    app = create_app(settings)
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            "/api/v1/generate/plan",
+            json={"syllabus_text": syllabus_text, "depth": depth},
+        )
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_demo_gives_each_sample_topic_distinct_content():
+    """The bundled sample syllabus must not collapse to one template.
+
+    Regression guard: the original provider substituted the topic into a single
+    fixed sentence triple, so every slide in the demo read identically.
+    """
+    body = _demo_plan(
+        "1. What is retrieval-augmented generation (RAG)?\n"
+        "2. Vector embeddings and similarity search\n"
+        "3. Chunking strategies for documents\n"
+        "4. Evaluating answer faithfulness"
+    )
+    slides = body["slides"]
+    assert len(slides) == 4
+
+    bullet_sets = {tuple(s["bullet_points"]) for s in slides}
+    assert len(bullet_sets) == 4, "each topic must get its own bullets"
+
+    notes = [s["speaker_notes"] for s in slides]
+    assert len(set(notes)) == 4, "each topic must get its own speaker notes"
+
+
+def test_demo_content_is_specific_to_its_topic():
+    """Bullets must talk about the topic, not about 'this topic'."""
+    body = _demo_plan("1. Chunking strategies for documents")
+    bullets = " ".join(body["slides"][0]["bullet_points"]).lower()
+    assert "chunk" in bullets
+    assert "this topic" not in bullets
+
+
+def test_demo_depth_toggle_changes_the_deck():
+    """High-level and in-depth must not return identical content."""
+    syllabus = "1. What is retrieval-augmented generation (RAG)?"
+    high = _demo_plan(syllabus, depth="High-Level")["slides"][0]
+    deep = _demo_plan(syllabus, depth="In-Depth")["slides"][0]
+
+    assert high["bullet_points"] != deep["bullet_points"]
+    assert len(deep["bullet_points"]) >= len(high["bullet_points"])
+
+
+def test_demo_is_deterministic():
+    """A recorded demo must replay exactly, so output is a pure function."""
+    syllabus = "1. Vector embeddings and similarity search"
+    first = _demo_plan(syllabus, depth="In-Depth")
+    second = _demo_plan(syllabus, depth="In-Depth")
+    assert first["slides"] == second["slides"]
+
+
+def test_demo_unknown_topic_falls_back_without_filler():
+    """A topic outside the library still gets anchored, non-placeholder text."""
+    body = _demo_plan("1. Llama grooming techniques")
+    slide = body["slides"][0]
+    bullets = " ".join(slide["bullet_points"]).lower()
+    assert "llama grooming" in bullets
+    assert "tbd" not in bullets and "lorem ipsum" not in bullets

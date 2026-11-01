@@ -168,7 +168,11 @@ $env:DEMO_MODE = "true"
 ```
 
 Demo mode swaps the model call for deterministic sample content and labels every
-run with a warning. Leave it unset for anything real.
+run with a warning. Content comes from a curated library covering the bundled
+sample syllabus and common AI and web-development topics, and it honours the
+depth toggle, so High-level and In-depth produce visibly different decks. A topic
+outside the library falls back to topic-anchored text rather than filler. Leave
+it unset for anything real.
 
 ## Deploy
 
