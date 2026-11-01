@@ -116,7 +116,7 @@ edezee/
 │   └── tests/               64 tests: unit, pipeline, HTTP contract
 ├── frontend/                Next.js UI: input form, live progress, review
 ├── evaluation/              12 test cases, harness, baseline comparison
-└── docs/                    Architecture, runbook, case study
+└── docs/                    Architecture, runbook, case study, demo script
 ```
 
 ## Configuration
@@ -201,6 +201,7 @@ backend/.venv/bin/python evaluation/run_eval.py --mode live   # 12 cases against
 | `docs/case-study.md` | You want the problem, results, and limitations |
 | `docs/evaluation.md` | You want the test set, rubric, and failure analysis |
 | `docs/ai-collaboration.md` | You want to know what AI did and what I verified |
+| `docs/demo-script.md` | You want the five-minute demo walkthrough and shot list |
 
 ## Limits
 
