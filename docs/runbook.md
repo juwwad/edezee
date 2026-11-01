@@ -65,7 +65,7 @@ curl -s localhost:8000/api/v1/health | jq -c '.status, .llm_configured'
 backend/.venv/bin/python evaluation/run_eval.py --mode mock
 ```
 
-A green health check plus 64 passing tests plus 12/12 mock cases means the
+A green health check plus 69 passing tests plus 12/12 mock cases means the
 pipeline, the validation logic, and the failure handling are all intact.
 
 ## 4. Common problems

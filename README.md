@@ -129,7 +129,7 @@ edezee/
 │   │       └── pptx_service.py  Structured slides -> .pptx bytes
 │   ├── run.sh               Start the API (macOS/Linux)
 │   ├── run.ps1              Start the API (Windows / PowerShell)
-│   └── tests/               64 tests: unit, pipeline, HTTP contract
+│   └── tests/               69 tests: unit, pipeline, HTTP contract
 ├── frontend/                Next.js UI: input form, live progress, review
 ├── evaluation/              12 test cases, harness, baseline comparison
 └── docs/                    Architecture, runbook, case study
@@ -168,7 +168,11 @@ $env:DEMO_MODE = "true"
 ```
 
 Demo mode swaps the model call for deterministic sample content and labels every
-run with a warning. Leave it unset for anything real.
+run with a warning. Content comes from a curated library covering the bundled
+sample syllabus and common AI and web-development topics, and it honours the
+depth toggle, so High-level and In-depth produce visibly different decks. A topic
+outside the library falls back to topic-anchored text rather than filler. Leave
+it unset for anything real.
 
 ## Deploy
 
@@ -209,7 +213,7 @@ Run the backend suite from `backend/`, then the evaluation harnesses from the
 repository root (the harness imports `backend/app`, so it must run from the root):
 
 ```bash
-(cd backend && ./.venv/bin/python -m pytest)      # 64 tests
+(cd backend && ./.venv/bin/python -m pytest)      # 69 tests
 backend/.venv/bin/python evaluation/run_eval.py --mode mock   # 12 cases, no API key needed
 backend/.venv/bin/python evaluation/run_eval.py --mode live   # 12 cases against a running server
 ```
