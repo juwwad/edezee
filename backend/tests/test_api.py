@@ -334,4 +334,5 @@ def test_demo_unknown_topic_falls_back_without_filler():
     slide = body["slides"][0]
     bullets = " ".join(slide["bullet_points"]).lower()
     assert "llama grooming" in bullets
-    assert "tbd" not in bullets and "lorem ipsum" not in bullets
+    assert "tbd" not in bullets
+    assert "lorem ipsum" not in bullets
