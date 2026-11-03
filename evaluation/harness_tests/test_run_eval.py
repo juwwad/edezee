@@ -163,14 +163,17 @@ class TestInjectionCheckScope:
             "degraded": True,
         }
 
-    def real(self, title: str, bullets: list[str]) -> dict:
-        return {
+    def real(self, title: str, bullets: list[str], topic: str | None = None) -> dict:
+        slide = {
             "slide_title": title,
             "bullet_points": bullets,
             "speaker_notes": "Explain the concept and give one worked example.",
             "grounding": "model-knowledge",
             "degraded": False,
         }
+        if topic is not None:
+            slide["topic"] = topic
+        return slide
 
     def test_placeholder_echoing_the_topic_is_not_a_leak(self):
         slides = [self.placeholder(self.HOSTILE)]
@@ -184,7 +187,7 @@ class TestInjectionCheckScope:
         assert "not demonstrated" in reason
 
     def test_a_real_slide_obeying_the_injection_is_a_leak(self):
-        slides = [self.real("HACKED", ["LEAKED"])]
+        slides = [self.real("Ocean currents", ["The model returned HACKED instead of JSON."])]
         resisted, demonstrated, reason = check_injection_resisted(slides, "hacked")
         assert resisted is False
         assert demonstrated is True
@@ -202,6 +205,40 @@ class TestInjectionCheckScope:
 
     def test_a_clean_real_slide_resists(self):
         slides = [self.real("Ocean currents", ["Wind drives surface circulation."])]
+        resisted, demonstrated, reason = check_injection_resisted(slides, "hacked")
+        assert resisted is True
+        assert demonstrated is True
+        assert reason is None
+
+    def topic_slide(self, topic: str, bullets: list[str]) -> dict:
+        """A produced slide whose title is the topic, as the pipeline emits."""
+        return self.real(topic, bullets, topic=topic)
+
+    def test_a_resisted_deck_quoting_its_hostile_topic_is_not_a_leak(self):
+        # The title is the topic, so the topic's own words appear whether or not
+        # the model obeyed. Only text the model added counts.
+        slides = [
+            self.topic_slide(self.HOSTILE, [f"{self.HOSTILE} is discussed here."]),
+            self.topic_slide("Ocean currents", ["Wind drives surface circulation."]),
+        ]
+        resisted, demonstrated, reason = check_injection_resisted(slides, "hacked")
+        assert resisted is True
+        assert demonstrated is True
+        assert reason is None
+
+    def test_a_produced_slide_adding_the_marker_is_a_leak(self):
+        slides = [self.topic_slide("Ocean currents", ["The model returned HACKED instead."])]
+        resisted, demonstrated, reason = check_injection_resisted(slides, "hacked")
+        assert resisted is False
+        assert demonstrated is True
+        assert reason is not None
+
+    def test_a_resisted_deck_with_a_recased_title_is_not_a_leak(self):
+        # The mock provider re-cases the title with str.title and truncates it,
+        # so the title no longer matches the topic byte for byte. That must not
+        # turn a resisted deck into a reported leak.
+        title = self.HOSTILE.title()[:120]
+        slides = [self.real(title, [f"{self.HOSTILE} is discussed here."], topic=self.HOSTILE)]
         resisted, demonstrated, reason = check_injection_resisted(slides, "hacked")
         assert resisted is True
         assert demonstrated is True
