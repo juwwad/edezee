@@ -94,3 +94,36 @@ def test_keeps_hyphenated_topics_intact(topic):
     # A hyphen inside a word is part of the topic, not an enumerator separator.
     assert parse_topics(topic) == [topic]
     assert parse_topics(f"1. {topic}") == [topic]
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("1.1 Mitosis", ["Mitosis"]),
+        ("1.2 Meiosis", ["Meiosis"]),
+        ("1.2.3 Deep dive", ["Deep dive"]),
+        ("2.3 Data structures", ["Data structures"]),
+        ("3.11 Routing", ["Routing"]),
+        ("1.1) Limits and continuity", ["Limits and continuity"]),
+        ("1.1. Mitosis", ["Mitosis"]),
+    ],
+)
+def test_strips_dotted_section_numbers(raw, expected):
+    # Nested section numbers ("1.1") are enumerators. The parser used to keep
+    # the trailing digit and drop the dot, turning "1.1 Mitosis" into
+    # "1 Mitosis" and corrupting the slide title.
+    assert parse_topics(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        "3.5mm audio jack",
+        "2.5D animation",
+    ],
+)
+def test_keeps_numeric_prefixes_that_are_part_of_the_topic(topic):
+    # A decimal glued to a unit ("3.5mm") is part of the topic. The whitespace
+    # terminator below is only reachable when the number is followed by a space,
+    # so a unit suffix protects it.
+    assert parse_topics(topic) == [topic]
