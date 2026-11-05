@@ -68,6 +68,8 @@ def test_keeps_long_prose_line_intact():
     [
         ("1) Cell biology", "Cell biology"),
         ("a) Vectors", "Vectors"),
+        ("A. Introduction", "Introduction"),
+        ("b. Vectors", "Vectors"),
         ("Module 4 - Neural networks", "Neural networks"),
         ("1.1) Limits and continuity", "Limits and continuity"),
         ("A - Introduction", "Introduction"),
@@ -76,6 +78,24 @@ def test_keeps_long_prose_line_intact():
 )
 def test_enumerator_variants(raw, expected_first):
     assert parse_topics(raw)[0] == expected_first
+
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        "U.S. history",
+        "U.K. constitutional law",
+        "e.g. how TCP works",
+        "i.e. the difference between TCP and UDP",
+        "A.I. ethics",
+    ],
+)
+def test_keeps_single_letter_initialisms_intact(topic):
+    # The dot in "U.S." is followed by a letter, so it is part of the word, not a
+    # single-letter enumerator. The parser used to eat the first letter and
+    # return "S. history".
+    assert parse_topics(topic) == [topic]
+    assert parse_topics(f"1. {topic}") == [topic]
 
 
 @pytest.mark.parametrize(
