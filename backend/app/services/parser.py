@@ -23,7 +23,10 @@ _NOISE_PATTERNS = [
 # start of another number, or a whitespace-delimited dash. The dot guard is what
 # keeps "1.1" intact: without it the engine matches "1" plus "." and leaves the
 # trailing digit in the topic ("1 Mitosis" instead of "Mitosis").
-_ENUM_TAIL = r"(?:\s*[):]\s*|\s*\.(?!\d)\s*|\s+[-–—]\s+)"
+# A run of dot/paren/colon characters is consumed together so the "1.)" style
+# (dot then parenthesis) does not leave a stray ")" in the topic ("1.) Mitosis"
+# used to yield ") Mitosis").
+_ENUM_TAIL = r"(?:\s*[.):]+\s*|\s*\.(?!\d)\s*|\s+[-–—]\s+)"
 
 # Leading enumerators: "1.", "1)", "1.1", "Week 3:", "a)".
 # A dash separates the enumerator only when it is whitespace-delimited

@@ -74,6 +74,12 @@ def test_keeps_long_prose_line_intact():
         ("1.1) Limits and continuity", "Limits and continuity"),
         ("A - Introduction", "Introduction"),
         ("1 - Foundations", "Foundations"),
+        # The "1.)" style (dot then parenthesis) used to leave a stray ")".
+        ("1.) Cell biology", "Cell biology"),
+        ("2.) Vectors", "Vectors"),
+        ("10.) Neural networks", "Neural networks"),
+        ("a.) Vectors", "Vectors"),
+        ("1.1.) Limits and continuity", "Limits and continuity"),
     ],
 )
 def test_enumerator_variants(raw, expected_first):
