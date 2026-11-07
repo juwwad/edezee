@@ -2,6 +2,15 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-07 — parser leaves a stray `)` on the `1.)` enumerator style
+
+- Baseline: `make test` on `main` 87 backend + 35 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 92 backend + 35 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: `parse_topics("1.) Mitosis")` returned `[') Mitosis']` — the enumerator tail matched the dot alone and left the closing parenthesis in the topic. Also hit `2.) Item`, `10.) Item`, `a.) Vectors`, `1.1.) Nested`. Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('1.) Mitosis'))"`
+- Fixed: `_ENUM_TAIL` consumes a run of dot/paren/colon characters (`[.):]+`) so `1.)` strips whole; added 5 dot-paren cases to `test_enumerator_variants`.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
+- Note: open PR #20 (injection-detector scope) touches unrelated code; not duplicated here.
+
 ## 2026-11-03 — parser eats first letter of a leading initialism
 
 - Baseline: `make test` on `main` 80 backend + 35 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 87 backend + 35 harness
