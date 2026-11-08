@@ -5,7 +5,7 @@ Repo: `github.com/juwwad/edezee`. Syllabus → `.pptx` generator. 5-day sprint, 
 ## Key facts
 - Backend: FastAPI + `python-pptx` in `backend/` (venv at `backend/.venv`, Python 3.13).
 - Frontend: Next.js 16 App Router + Tailwind 4 + React 19 in `frontend/`. **Not** static export; `npm start` works.
-- Tests: `cd backend && ./.venv/bin/python -m pytest` → 64 passing; harness `backend/.venv/bin/python -m pytest evaluation/harness_tests` → 35 passing.
+- Tests: `make test` runs both suites. Backend `cd backend && ./.venv/bin/python -m pytest` → 71 passing; harness `backend/.venv/bin/python -m pytest evaluation/harness_tests` → 35 passing. Counts drift as tests are added; treat the exact number in the log as a snapshot, not a constant.
 - Eval gate: `backend/.venv/bin/python evaluation/run_eval.py --mode mock` → 12/12, no API key needed. This is the quality gate; treat failure as top priority.
 - `--mode live` needs a running backend + `OPENROUTER_API_KEY`. Takes ~5–8 min for all 12 cases (TC-07/TC-08 are 12 and 40 topics).
 - Model in use: `deepseek-v4.1-flash` via `https://llm-proxy.app.all-hands.dev`. Only `deepseek-v4.1-flash` and `deepseek-v4-flash` are available.
@@ -37,5 +37,9 @@ Repo: `github.com/juwwad/edezee`. Syllabus → `.pptx` generator. 5-day sprint, 
 ## Automations (OpenHands Cloud)
 Deployed via `POST https://app.all-hands.dev/api/automation/v1/preset/prompt` (Bearer `OPENHANDS_API_KEY`).
 - **Hard limit: `timeout` max 1800s.** A 3600 value is rejected by validation.
-- Drafts live in `.openhands/automations/<name>/prompt.md`: `daily-build-edezee` and `daily-qa-edezee`.
+- Drafts live in `.openhands/automations/<name>/`: `daily-build-edezee`, `daily-qa-edezee`, `edezee-daily-audit`, `edezee-daily-qa`.
+- **Active:** `Daily Audit / Fix / PR - Edezee` id `dd61b7e5-ca77-40ce-899f-ad7246a37a1a`, cron `0 13 * * *` UTC.
+- **Active:** `Daily QA + Fix + PR - Edezee` id `7c75eb8a-2154-4bbd-8e9b-b999cd4b45c3`, cron `0 14 * * *` UTC. Runs an hour after the audit so the two do not race the same branch namespace.
+- Run history: `curl -s "https://app.all-hands.dev/api/automation/v1/<id>/runs?limit=20" -H "Authorization: Bearer $OPENHANDS_API_KEY"`.
+- QA prompt facts that were verified, not assumed: the sandbox has no `xxd` (use `od`); the `X-Edezee-Diagnostics` header must be grepped anchored (`^x-edezee-diagnostics:`) or the CORS `access-control-expose-headers` line also matches and the concatenation is not JSON; `DEMO_MODE=true` serves deterministic decks with no key so QA runs without the proxy; the slide title is the topic, so a topic containing "HACKED" legitimately appears in the deck and asserting its absence is a false defect.
 - The `repos` field clones the repo fresh each run; GitHub access works with the provided token.

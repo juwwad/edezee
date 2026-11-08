@@ -15,19 +15,35 @@ _NOISE_PATTERNS = [
     re.compile(r"^(week|module|unit|lesson|session|day|class|part|section)\s*\d*\s*[:.\-–]?\s*$", re.I),
     re.compile(r"^(syllabus|course|outline|schedule|topics?|contents?|overview)\s*[:.\-–]?\s*$", re.I),
     re.compile(r"^[\s\-–—=*_#|]+$"),
+    # A bare section number ("1", "1.1", "1.1.") is a heading, not a topic.
+    re.compile(r"^\d+(?:\.\d+)*[.)]?$"),
 ]
+
+# Ends an enumerator: a closing parenthesis or colon, a dot that is not the
+# start of another number, or a whitespace-delimited dash. The dot guard is what
+# keeps "1.1" intact: without it the engine matches "1" plus "." and leaves the
+# trailing digit in the topic ("1 Mitosis" instead of "Mitosis").
+_ENUM_TAIL = r"(?:\s*[):]\s*|\s*\.(?!\d)\s*|\s+[-–—]\s+)"
 
 # Leading enumerators: "1.", "1)", "1.1", "Week 3:", "a)".
 # A dash separates the enumerator only when it is whitespace-delimited
 # ("A - Introduction", "1 - Foundations"). Without that rule a single leading
 # letter or digit followed by a hyphen is eaten from real topics such as
 # "X-ray crystallography", "e-learning", "B-tree indexes", or "3-D printing".
+# A plain number only terminates on punctuation, so "1 Introduction" and
+# "C programming" keep their leading token; a dotted number may also terminate
+# on whitespace, because "1.1 Mitosis" is unambiguously an enumerator.
+# A single letter is only an enumerator when its dot is not followed by another
+# letter. "A. Introduction" is an enumerator, but the dot in "U.S. history" or
+# "e.g. how TCP works" is part of the word, so eating the leading letter would
+# corrupt the topic into "S. history".
 _ENUMERATOR = re.compile(
     r"^\s*(?:"
-    r"(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+"
-    r"|\d+(?:\.\d+)*"
-    r"|[a-zA-Z]"
-    r")(?:\s*[.):]\s*|\s+[-–—]\s+)",
+    r"(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+(?:\.\d+)*" + _ENUM_TAIL +
+    r"|\d+(?:\.\d+)+(?:" + _ENUM_TAIL + r"|\s+)"
+    r"|\d+(?!\.\d)" + _ENUM_TAIL +
+    r"|[a-zA-Z](?![.][A-Za-z])" + _ENUM_TAIL +
+    r")",
     re.I,
 )
 
