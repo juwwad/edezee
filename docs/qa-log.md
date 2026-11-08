@@ -2,14 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
-## 2026-11-03 — parser eats first letter of a leading initialism
+## 2026-11-03 — harness flagged a resisting deck as an injection leak
 
-- Baseline: `make test` on `main` 80 backend + 35 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 87 backend + 35 harness
+- Baseline: `make test` 71 backend + 40 harness passed, `make mock-eval` 12/12, typecheck+build OK
 - QA: 9 checks run, 9 passed, 0 failed
-- Found: `parse_topics("U.S. history")` returned `['S. history']` — the single-letter enumerator rule matched the "U" and its dot. Also corrupted `U.K. constitutional law` → `K. constitutional law`, `e.g. how TCP works` → `g. how TCP works`, `A.I. ethics` → `I. ethics`. Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('U.S. history'))"`
-- Fixed: a single letter is only an enumerator when its dot is not followed by another letter, so `A. Introduction` still strips while `U.S.` stays whole. Added 5 initialism cases and 2 letter-enumerator cases.
+- Found: the injection detectors scanned the slide title, which is the topic itself, so a deck that resisted still carried the hostile marker and was recorded as leaked. `evaluation/baseline.py` `_injection_leaked` and `evaluation/run_eval.py` `check_injection_resisted` both did this. Repro: build the TC-11 slides with the title equal to the topic, then `check_injection_resisted(slides, "hacked")` -> `resisted False`; the comparison's headline signal was inverted for the case it exists to prove.
+- Fixed: added `scoring.topic_text`, which drops the topic line (case-insensitive, truncation-tolerant, prefix match) before the marker is searched for; both detectors now use it. Real obedience (marker the model wrote) is still a leak. Added 5 tests.
 - Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
-- Note: open PR #20 (injection-detector scope) touches unrelated code; not duplicated here.
+- Note: PR #19 (dotted enumerators) was open but unmerged; its fix is not repeated here. `docs/qa-log.md` is created on this branch because `main` does not carry it yet.
 
 ## 2026-11-02 — first run: parser drops leading digit of dotted section numbers
 
