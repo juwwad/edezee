@@ -366,3 +366,24 @@ def test_demo_unknown_topic_falls_back_without_filler():
     assert "llama grooming" in bullets
     assert "tbd" not in bullets
     assert "lorem ipsum" not in bullets
+
+
+def test_demo_keyword_match_does_not_fire_mid_word():
+    """A keyword must match a whole word, not a substring inside another word.
+
+    The "rag" keyword matched the "rag" inside "storage", "average", and
+    "paragraph", so a topic unrelated to retrieval-augmented generation was
+    served the RAG slide instead of its own anchored fallback.
+    """
+    body = _demo_plan("1. Storage and memory\n2. Average speed and velocity")
+    for slide in body["slides"]:
+        bullets = " ".join(slide["bullet_points"]).lower()
+        assert "rag lets a language model" not in bullets, slide["slide_title"]
+        assert slide["slide_title"].lower().split()[0] in bullets
+
+
+def test_demo_known_topic_still_matches():
+    """The word-boundary rule must not stop a real keyword from matching."""
+    body = _demo_plan("1. What is retrieval-augmented generation (RAG)?")
+    bullets = " ".join(body["slides"][0]["bullet_points"]).lower()
+    assert "retrieval" in bullets or "rag" in bullets
