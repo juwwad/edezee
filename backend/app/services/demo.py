@@ -20,6 +20,7 @@ the same input always produces the same deck, so a recorded demo replays exactly
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 
 import httpx
@@ -453,9 +454,20 @@ def _title(topic: str) -> str:
 def _match(title: str) -> _Entry | None:
     haystack = title.lower()
     for entry in _LIBRARY:
-        if any(keyword in haystack for keyword in entry.keywords):
+        if any(_keyword_hits(keyword, haystack) for keyword in entry.keywords):
             return entry
     return None
+
+
+def _keyword_hits(keyword: str, haystack: str) -> bool:
+    """True when ``keyword`` starts a word in ``haystack``.
+
+    The keywords are stems ("chunk" matches "chunking"), so the match is
+    anchored only at the start of a word. A bare substring test let the "rag"
+    keyword fire inside "storage", "average", and "paragraph", serving the
+    retrieval-augmented-generation slide for a topic about neither.
+    """
+    return re.search(r"\b" + re.escape(keyword), haystack) is not None
 
 
 def _fallback(title: str, *, in_depth: bool) -> _Slide:

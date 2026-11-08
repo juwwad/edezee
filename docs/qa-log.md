@@ -2,6 +2,15 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-08 — demo provider matched keywords mid-word
+
+- Baseline: `make test` 87 backend + 35 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 89 backend + 35 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: the demo provider's keyword match was a bare substring test, so `rag` matched inside "sto**rag**e", "ave**rag**e", and "pa**rag**raph" and served the RAG slide for topics about neither. Repro: `DEMO_MODE=true` server, then `curl -s -X POST localhost:8021/api/v1/generate/plan -H 'Content-Type: application/json' -d '{"syllabus_text":"1. Storage and memory"}'` → first bullet "RAG lets a language model answer from documents it was never trained on". Also affected "average", "paragraph", "fragmentation", and the `chunk`/`prompt`/`lora` stems.
+- Fixed: `_match` in `backend/app/services/demo.py` now anchors each keyword at a word start (`\b`), so stems still match ("chunk" → "chunking") but mid-word hits do not. Added 2 tests.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`; issue #6 records the managed proxy returning 403.
+- Note: live-mode TC-11 fails against the demo provider (injection detector scans the topic title); open PR #20 already fixes it, so it is not repeated here.
+
 ## 2026-11-03 — parser eats first letter of a leading initialism
 
 - Baseline: `make test` on `main` 80 backend + 35 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 87 backend + 35 harness
