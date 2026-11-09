@@ -264,7 +264,10 @@ def score_plan(score: CaseScore, body: dict, case: dict, expected: dict) -> None
         # live provider normally succeeds, so this is asserted in mock mode,
         # where the outage is scripted. Live mode checks the weaker, still
         # meaningful property: the run completed and produced every slide.
-        if expected.get("mock"):
+        # The mode flag lives on the case (``"mock": true``), not inside
+        # ``expect``; reading it from ``expect`` made this branch dead code and
+        # let a silent failure pass TC-12 in every mode.
+        if case.get("mock"):
             score.checks["placeholder_present"] = any(s["degraded"] for s in slides)
             if not score.checks["placeholder_present"]:
                 score.failures.append("expected at least one placeholder slide")

@@ -235,3 +235,75 @@ class TestSignalChecksDoNotFailACase:
     def test_gating_checks_pass_ignores_only_signal_checks(self):
         assert gating_checks_pass({"no_generic_wording": False, "latency": True}) is True
         assert gating_checks_pass({"no_generic_wording": True, "latency": False}) is False
+
+
+class TestPlaceholderAssertionIsReachable:
+    """TC-12 must assert that a provider outage produced a placeholder.
+
+    The flag that selects the assertion lives at the case level (``"mock": true``)
+    but the scorer read it from the ``expect`` object, where it never appears. The
+    mock-only branch was therefore dead code: no mode ran ``placeholder_present``,
+    so a regression that swallowed the outage -- every slide produced, none
+    flagged -- still passed TC-12. That is a false pass on the one case that
+    exists to prove a failure is surfaced, not hidden.
+    """
+
+    def _slide(self, number: int, degraded: bool) -> dict:
+        return {
+            "topic": f"Topic {number}",
+            "slide_number": number,
+            "slide_title": f"Topic {number}",
+            "bullet_points": ["A bullet carrying real content words about the topic."],
+            "speaker_notes": "A sufficiently long speaker note for the quality gate.",
+            "grounding": "placeholder" if degraded else "model-knowledge",
+            "sources": [],
+            "attempts": 1,
+            "degraded": degraded,
+            "error": "HTTP 503" if degraded else None,
+        }
+
+    def _expected(self) -> dict:
+        return {"topics": 3, "min_slides": 3, "max_degraded": 1, "status": 200,
+                "expect_placeholder_slide": True, "max_latency_ms": 180_000}
+
+    def _score(self, slides: list[dict], case: dict) -> CaseScore:
+        body = {
+            "slides": slides,
+            "diagnostics": {
+                "degraded_slides": sum(1 for s in slides if s["degraded"]),
+                "warnings": [],
+            },
+        }
+        score = CaseScore(case_id="TC-12", name="x", category="failure",
+                          passed=False, status=200, latency_ms=100)
+        score_plan(score, body, case, self._expected())
+        return score
+
+    def test_placeholder_present_is_asserted_in_mock_mode(self):
+        score = self._score(
+            [self._slide(1, False), self._slide(2, True), self._slide(3, False)],
+            {"id": "TC-12", "mock": True},
+        )
+        assert score.checks.get("placeholder_present") is True
+
+    def test_a_silent_failure_fails_the_case(self):
+        # The regression the assertion exists to catch: the outage produced every
+        # slide, but none is flagged, so nothing records that a topic failed.
+        score = self._score(
+            [self._slide(1, False), self._slide(2, False), self._slide(3, False)],
+            {"id": "TC-12", "mock": True},
+        )
+        assert score.checks.get("placeholder_present") is False
+        assert score.passed is False
+        assert any("placeholder" in failure for failure in score.failures)
+
+    def test_live_mode_uses_the_weaker_completion_check(self):
+        # Live mode has no scripted outage, so it asserts only that the run
+        # completed and produced every slide; the placeholder flag is not
+        # expected there.
+        score = self._score(
+            [self._slide(1, False), self._slide(2, False), self._slide(3, False)],
+            {"id": "TC-12"},
+        )
+        assert "placeholder_present" not in score.checks
+        assert score.checks.get("completed_despite_failure") is True
