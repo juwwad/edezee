@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-09 — harness never asserted the placeholder it exists to check
+
+- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: TC-12 (`expect_placeholder_slide`) read its mode flag from `expected.get("mock")`, but `mock` is a case-level field, so the branch was dead code in every mode. A provider outage that produced all slides with none flagged still passed. Repro: `score_plan` on 3 non-degraded slides with `case={"mock": True}` -> `passed True`, no `placeholder_present` check.
+- Fixed: `evaluation/run_eval.py` reads `case.get("mock")`; TC-12 now records `placeholder_present`. Added 3 tests. Real mock run confirms `"placeholder_present": true`.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
+
 ## 2026-11-03 — harness flagged a resisting deck as an injection leak
 
 - Baseline: `make test` 71 backend + 40 harness passed, `make mock-eval` 12/12, typecheck+build OK
