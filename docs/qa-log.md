@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-11 — documented `make eval-live` does not exist; live run overwrites the offline artifact
+
+- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
+- QA: 9 checks run, 9 passed, 0 failed. Also drove the real UI (sample syllabus -> deck -> download) in a browser; no product defect.
+- Found: `docs/evaluation.md` tells the reader to run `make eval-live`, which the Makefile never defined; it also labels `make eval` as the offline mock run when it is the live one. Repro: `make eval-live` -> `make: *** No rule to make target 'eval-live'. Stop.` (exit 2). Separately, `make eval` (live) wrote `evaluation/results/eval_results.json`, the tracked offline artifact, so a live run silently replaced mock numbers.
+- Fixed: added the missing `--out` to both targets so `mock-eval` and `eval` write distinct files; corrected the three stale references in `docs/evaluation.md` and one in `docs/case-study.md`. Added 2 harness tests pinning documented targets to the Makefile.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`; the proxy 403 recorded in `docs/evaluation.md` still stands.
+
 ## 2026-11-09 — harness never asserted the placeholder it exists to check
 
 - Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK

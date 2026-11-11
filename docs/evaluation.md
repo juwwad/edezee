@@ -8,8 +8,8 @@ Two results files back the tables below:
 
 | File | Produced by |
 | --- | --- |
-| `evaluation/results/eval_results.json` | `make eval` (mock provider, no network) |
-| `evaluation/results/eval_results_live.json` | `make eval-live` (real model) |
+| `evaluation/results/eval_results.json` | `make mock-eval` (mock provider, no network) |
+| `evaluation/results/eval_results_live.json` | `make eval` (real model) |
 | `evaluation/results/baseline.json` | `make baseline` |
 
 ---
@@ -84,8 +84,8 @@ runner prints the skip and the reason; it never counts a skip as a pass.
 
 ### Mock results
 
-`make eval` runs the same 12 cases against a deterministic mock provider, so the
-suite is reproducible offline and in CI.
+`make mock-eval` runs the same 12 cases against a deterministic mock provider, so
+the suite is reproducible offline and in CI.
 
 **12 of 12 pass.** The mock run is the regression gate; the live run is the
 evidence that the gate reflects reality.
@@ -332,8 +332,8 @@ Backend: 69 passed. Harness: 35 passed.
   request including a one-word prompt. That is an access-policy change outside
   this repository, not a regression in the pipeline: the system degrades exactly
   as designed, producing flagged placeholder slides and finishing the run rather
-  than crashing. Re-running `make eval-live` requires the model access to be
-  restored; `make eval` and `make mock-eval` are unaffected.
+  than crashing. Re-running `make eval` requires the model access to be
+  restored; `make mock-eval` is unaffected.
 - **The injected topic is one attack string.** It demonstrates the class of
   failure; it does not establish robustness against prompt injection generally.
 
@@ -342,8 +342,8 @@ Backend: 69 passed. Harness: 35 passed.
 ## 8. Reproducing this
 
 ```bash
-make eval          # 12 cases, mock provider, offline
-make eval-live     # 12 cases, real model
+make mock-eval     # 12 cases, mock provider, offline
+make eval          # 12 cases, real model
 make baseline      # naive vs pipeline, writes evaluation/results/baseline.json
 make test          # backend suite + harness tests
 ```
