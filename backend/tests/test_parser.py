@@ -153,3 +153,19 @@ def test_keeps_numeric_prefixes_that_are_part_of_the_topic(topic):
     # terminator below is only reachable when the number is followed by a space,
     # so a unit suffix protects it.
     assert parse_topics(topic) == [topic]
+
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        ".NET programming",
+        ".env configuration",
+        "Introduction to .NET Core",
+    ],
+)
+def test_keeps_leading_dot_topics_intact(topic):
+    # A leading dot can be part of the topic itself (".NET", ".env"). The final
+    # punctuation strip removed it, turning ".NET programming" into
+    # "NET programming" and ".env configuration" into "env configuration".
+    assert parse_topics(topic) == [topic]
+    assert parse_topics(f"1. {topic}") == [topic]
