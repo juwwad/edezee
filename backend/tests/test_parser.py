@@ -142,6 +142,39 @@ def test_strips_dotted_section_numbers(raw, expected):
 
 
 @pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("1. C\n2. Python\n3. R", ["C", "Python", "R"]),
+        ("1. R", ["R"]),
+        ("a", ["a"]),
+        ("X", ["X"]),
+    ],
+)
+def test_keeps_single_character_topics(raw, expected):
+    # A one-character topic is a real topic ("C", "R", and "X" are course
+    # languages and subjects). The parser used to drop anything shorter than
+    # two characters, silently removing a slide.
+    assert parse_topics(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "1. )",
+        "1.)",
+        "-)",
+        ".",
+        ":",
+        "1.2.3.",
+    ],
+)
+def test_punctuation_only_lines_are_not_topics(raw):
+    # Enumerator residue that strips to pure punctuation must not become a
+    # topic once the one-character floor is removed.
+    assert parse_topics(raw) == []
+
+
+@pytest.mark.parametrize(
     "topic",
     [
         "3.5mm audio jack",
