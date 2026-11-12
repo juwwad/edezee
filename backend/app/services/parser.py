@@ -86,7 +86,11 @@ def parse_topics(raw_text: str, *, max_topics: int = 40) -> list[str]:
         for chunk in chunks:
             topic = _strip_enumerator(chunk)
             topic = re.sub(r"\s{2,}", " ", topic).strip()
-            if len(topic) < 2 or _is_noise(topic):
+            # A chunk that strips to pure punctuation (")", ".", ":") is
+            # enumerator residue. It is not a topic. A single alphanumeric
+            # character is: "1. C", "2. R", and "a" are real course topics, and
+            # dropping them silently removes a slide.
+            if not any(char.isalnum() for char in topic) or _is_noise(topic):
                 continue
             candidates.append(topic)
 
