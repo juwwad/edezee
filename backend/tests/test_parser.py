@@ -153,3 +153,40 @@ def test_keeps_numeric_prefixes_that_are_part_of_the_topic(topic):
     # terminator below is only reachable when the number is followed by a space,
     # so a unit suffix protects it.
     assert parse_topics(topic) == [topic]
+
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        "E. coli",
+        "C. elegans",
+        "H. pylori",
+        "S. aureus",
+        "T. rex",
+        "X.509 certificates",
+    ],
+)
+def test_keeps_single_letter_genus_abbreviations_intact(topic):
+    # "E. coli" and "C. elegans" are genus abbreviations, not enumerators. The
+    # capital-letter branch matched the leading letter, dropped the dot, and
+    # returned "coli" / "elegans", silently corrupting the topic and its slide
+    # title. A lowercase word after the dot is the signal that the letter
+    # belongs to the word.
+    assert parse_topics(topic) == [topic]
+    assert parse_topics(f"1. {topic}") == [topic]
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("A. Introduction", "Introduction"),
+        ("B. Methods", "Methods"),
+        ("a. vectors", "vectors"),
+        ("b. Vectors", "Vectors"),
+    ],
+)
+def test_still_strips_single_letter_enumerators(raw, expected):
+    # A single letter followed by a dot and a capitalised word is a real
+    # enumerator ("A. Introduction"). The genus fix must not stop these from
+    # being stripped.
+    assert parse_topics(raw)[0] == expected
