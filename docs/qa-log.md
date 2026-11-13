@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-13 — parser drops the first letter of genus abbreviations
+
+- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: `parse_topics("E. coli")` returned `["coli"]` and `parse_topics("X.509 certificates")` returned `["509 certificates"]`. The capital-single-letter enumerator branch matched the leading letter, so the slide title lost it. Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('E. coli'))"`
+- Fixed: `parser.py` treats a capital letter followed by a dot and a lowercase word (`E. coli`, `C. elegans`, `X.509`) as part of the topic; `A. Introduction` is still stripped. Added 10 tests.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
+
 ## 2026-11-09 — harness never asserted the placeholder it exists to check
 
 - Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
