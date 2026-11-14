@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-14 — a provider 200 with a non-JSON body crashed the whole deck
+
+- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
+- QA: 9 checks run, 9 passed, 0 failed. Also ran the harness live against the demo server (10/10 scored, TC-08/TC-12 skipped by design).
+- Found: `LLMService._call_model` called `response.json()` without guarding it, so a provider (or a gateway in front of it) returning HTTP 200 with an HTML body raised `JSONDecodeError`, which escaped the retry loop and turned the request into HTTP 500 — the opposite of "a deck always finishes". Repro: a transport returning `httpx.Response(200, text="<html>502 Bad Gateway</html>")` -> `POST /api/v1/generate` returned 500 instead of a deck with flagged placeholders.
+- Fixed: `backend/app/services/llm.py` now catches the JSON decode failure and raises `LLMError`, so the topic degrades to a placeholder like any other provider failure. Added 3 tests (llm, pipeline, API); all 3 fail on the old code.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`; the proxy 403 recorded in `docs/evaluation.md` still stands.
+
 ## 2026-11-09 — harness never asserted the placeholder it exists to check
 
 - Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK

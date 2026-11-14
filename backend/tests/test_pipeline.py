@@ -84,6 +84,25 @@ async def test_one_failing_topic_degrades_to_placeholder():
 
 
 @pytest.mark.asyncio
+async def test_non_json_provider_response_degrades_to_placeholder():
+    # A 200 response with a non-JSON body (a gateway HTML error page) must
+    # degrade the topic, not abort the run. "A deck always finishes" applies to
+    # every provider failure, not just HTTP error codes.
+    responses = [
+        llm_response(content_for("Topic 1")),
+        httpx.Response(200, text="<html>502 Bad Gateway</html>"),
+        llm_response(content_for("Topic 3")),
+    ]
+    pipeline = build_pipeline(responses, max_topic_attempts=1)
+    _, slides, diag = await pipeline.generate(
+        "1. Topic 1\n2. Topic 2\n3. Topic 3", depth=Depth.HIGH_LEVEL
+    )
+    assert len(slides) == 3
+    assert diag.degraded_slides == 1
+    assert slides[1].grounding is Grounding.PLACEHOLDER
+
+
+@pytest.mark.asyncio
 async def test_research_grounding_is_recorded():
     class SearchTransport(httpx.AsyncBaseTransport):
         async def handle_async_request(self, request):
