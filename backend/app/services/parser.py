@@ -36,13 +36,18 @@ _ENUM_TAIL = r"(?:\s*[.):]+\s*|\s*\.(?!\d)\s*|\s+[-–—]\s+)"
 # A plain number only terminates on punctuation, so "1 Introduction" and
 # "C programming" keep their leading token; a dotted number may also terminate
 # on whitespace, because "1.1 Mitosis" is unambiguously an enumerator.
+# A header word followed by a dotted number takes the same whitespace
+# terminator, so "Unit 1.1 Foundations" strips whole. Without it the header
+# branch backtracked to the plain-number form, matched only "Unit 1.", and left
+# the trailing digit as the topic ("1 Foundations").
 # A single letter is only an enumerator when its dot is not followed by another
 # letter. "A. Introduction" is an enumerator, but the dot in "U.S. history" or
 # "e.g. how TCP works" is part of the word, so eating the leading letter would
 # corrupt the topic into "S. history".
 _ENUMERATOR = re.compile(
     r"^\s*(?:"
-    r"(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+(?:\.\d+)*" + _ENUM_TAIL +
+    r"(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+(?:\.\d+)+(?:" + _ENUM_TAIL + r"|\s+)"
+    r"|(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+" + _ENUM_TAIL +
     r"|\d+(?:\.\d+)+(?:" + _ENUM_TAIL + r"|\s+)"
     r"|\d+(?!\.\d)" + _ENUM_TAIL +
     r"|[a-zA-Z](?![.][A-Za-z])" + _ENUM_TAIL +

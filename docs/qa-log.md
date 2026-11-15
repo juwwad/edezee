@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-15 — parser corrupts a dotted number after a header word
+
+- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: a header word followed by a dotted section number backtracks in `_ENUMERATOR`, so only the plain-number form matches and the trailing digit survives as the topic. Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('Unit 1.1 Foundations'))"` -> `['1 Foundations']` (also `Module 2.3 Cells` -> `['3 Cells']`, `Lesson 3.2 Photosynthesis` -> `['2 Photosynthesis']`). The topic and its slide title are wrong.
+- Fixed: gave the header-word branch a dotted-number form with the same whitespace terminator as the bare `1.1 Mitosis` case. `Unit 1.1 Foundations` -> `['Foundations']`. Added 9 parametrized tests. Backend suite 103 passed, mock-eval 12/12.
+- Could not verify: `make eval` (live, real model) — no `OPENROUTER_API_KEY`; the live harness ran against the demo server instead (10/10 executed, 2 skipped by design).
+
 ## 2026-11-09 — harness never asserted the placeholder it exists to check
 
 - Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
