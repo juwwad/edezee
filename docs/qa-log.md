@@ -10,6 +10,14 @@ Newest entry first. One entry per daily run.
 - Fixed: replaced the bare word with the pipeline's own placeholder phrasing (`could not be researched or drafted automatically`, `review the syllabus entry and regenerate`), keeping `automatic generation failed` and `lorem ipsum`. Real placeholders are still caught; the word alone is not. Added 8 tests. Harness suite 51 passed, mock-eval 12/12.
 - Could not verify: `make eval` (live, real model) — no `OPENROUTER_API_KEY`; the live harness ran against the demo server instead (10/10 executed, 2 skipped by design).
 
+## 2026-11-10 — parser strips a leading dot that belongs to the topic
+
+- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 97 backend + 43 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: `_strip_enumerator` ended with `.strip(" \t-–—:.")`, so a leading dot that is part of the topic was removed: `.NET programming` -> `NET programming`, `.env configuration` -> `env configuration`. Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('.NET programming'))"`
+- Fixed: `parser.py` strips leading whitespace/dashes/colons, and strips a leading dot only when it is not glued to a word; trailing punctuation still stripped. Added 3 parametrized tests.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
+
 ## 2026-11-09 — harness never asserted the placeholder it exists to check
 
 - Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
