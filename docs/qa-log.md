@@ -2,13 +2,13 @@
 
 Newest entry first. One entry per daily run.
 
-## 2026-11-11 — documented `make eval-live` does not exist; live run overwrites the offline artifact
+## 2026-11-10 — parser strips a leading dot that belongs to the topic
 
-- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
-- QA: 9 checks run, 9 passed, 0 failed. Also drove the real UI (sample syllabus -> deck -> download) in a browser; no product defect.
-- Found: `docs/evaluation.md` tells the reader to run `make eval-live`, which the Makefile never defined; it also labels `make eval` as the offline mock run when it is the live one. Repro: `make eval-live` -> `make: *** No rule to make target 'eval-live'. Stop.` (exit 2). Separately, `make eval` (live) wrote `evaluation/results/eval_results.json`, the tracked offline artifact, so a live run silently replaced mock numbers.
-- Fixed: added the missing `--out` to both targets so `mock-eval` and `eval` write distinct files; corrected the three stale references in `docs/evaluation.md` and one in `docs/case-study.md`. Added 2 harness tests pinning documented targets to the Makefile.
-- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`; the proxy 403 recorded in `docs/evaluation.md` still stands.
+- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 97 backend + 43 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: `_strip_enumerator` ended with `.strip(" \t-–—:.")`, so a leading dot that is part of the topic was removed: `.NET programming` -> `NET programming`, `.env configuration` -> `env configuration`. Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('.NET programming'))"`
+- Fixed: `parser.py` strips leading whitespace/dashes/colons, and strips a leading dot only when it is not glued to a word; trailing punctuation still stripped. Added 3 parametrized tests.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
 
 ## 2026-11-09 — harness never asserted the placeholder it exists to check
 
