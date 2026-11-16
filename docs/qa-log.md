@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-16 — harness fails a deck that mentions placeholders
+
+- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: `PLACEHOLDER_MARKERS` in `evaluation/scoring.py` listed the bare word `"placeholder"` and `placeholder_hits` is a substring test, so a legitimately produced slide that teaches the word (HTML `placeholder` attribute, SQL bind placeholders, "start with a placeholder value") tripped the gating `no_placeholder_leak` check and failed the case with "placeholder wording on a non-degraded slide". Repro: `backend/.venv/bin/python -c "import sys; sys.path.insert(0,'evaluation'); from scoring import placeholder_hits; print(placeholder_hits('The placeholder attribute shows hint text.'))"` -> `['placeholder']`. A believable failure that sends the reader to fix a pipeline that never degraded.
+- Fixed: replaced the bare word with the pipeline's own placeholder phrasing (`could not be researched or drafted automatically`, `review the syllabus entry and regenerate`), keeping `automatic generation failed` and `lorem ipsum`. Real placeholders are still caught; the word alone is not. Added 8 tests. Harness suite 51 passed, mock-eval 12/12.
+- Could not verify: `make eval` (live, real model) — no `OPENROUTER_API_KEY`; the live harness ran against the demo server instead (10/10 executed, 2 skipped by design).
+
 ## 2026-11-09 — harness never asserted the placeholder it exists to check
 
 - Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
