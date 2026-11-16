@@ -190,3 +190,18 @@ def test_still_strips_single_letter_enumerators(raw, expected):
     # enumerator ("A. Introduction"). The genus fix must not stop these from
     # being stripped.
     assert parse_topics(raw)[0] == expected
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        ".NET programming",
+        ".env configuration",
+        "Introduction to .NET Core",
+    ],
+)
+def test_keeps_leading_dot_topics_intact(topic):
+    # A leading dot can be part of the topic itself (".NET", ".env"). The final
+    # punctuation strip removed it, turning ".NET programming" into
+    # "NET programming" and ".env configuration" into "env configuration".
+    assert parse_topics(topic) == [topic]
+    assert parse_topics(f"1. {topic}") == [topic]
