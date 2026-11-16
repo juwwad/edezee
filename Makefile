@@ -45,10 +45,10 @@ test:
 	backend/.venv/bin/python -m pytest evaluation/harness_tests -q
 
 mock-eval:
-	backend/.venv/bin/python evaluation/run_eval.py --mode mock
+	backend/.venv/bin/python evaluation/run_eval.py --mode mock --out evaluation/results/eval_results.json
 
 eval:
-	backend/.venv/bin/python evaluation/run_eval.py --mode live
+	backend/.venv/bin/python evaluation/run_eval.py --mode live --out evaluation/results/eval_results_live.json
 
 baseline:
 	backend/.venv/bin/python evaluation/baseline.py
