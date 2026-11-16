@@ -176,3 +176,18 @@ def test_strips_dotted_numbers_after_a_header_word(raw, expected):
     # the topic: "1 Foundations". The dotted-number form now takes the same
     # whitespace terminator as the bare "1.1 Mitosis" case.
     assert parse_topics(raw) == expected
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        ".NET programming",
+        ".env configuration",
+        "Introduction to .NET Core",
+    ],
+)
+def test_keeps_leading_dot_topics_intact(topic):
+    # A leading dot can be part of the topic itself (".NET", ".env"). The final
+    # punctuation strip removed it, turning ".NET programming" into
+    # "NET programming" and ".env configuration" into "env configuration".
+    assert parse_topics(topic) == [topic]
+    assert parse_topics(f"1. {topic}") == [topic]

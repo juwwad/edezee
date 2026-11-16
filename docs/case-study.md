@@ -313,7 +313,7 @@ sends the reader to the wrong problem.
    policy`, for every request. That is an access-policy change outside the
    repository; the system degrades as designed rather than crashing. Reproducing
    the live numbers requires the model access to be restored, and the offline
-   gates (`make eval`, `make mock-eval`) are unaffected.
+   gate (`make mock-eval`) is unaffected.
 
 ---
 
