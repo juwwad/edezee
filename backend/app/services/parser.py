@@ -59,8 +59,16 @@ def _is_noise(line: str) -> bool:
 
 def _strip_enumerator(line: str) -> str:
     cleaned = _BULLET.sub("", line)
-    cleaned = _ENUMERATOR.sub("", cleaned)
-    return cleaned.strip(" \t-–—:.")
+    cleaned = _ENUMERATOR.sub("", cleaned).strip()
+    # Trailing punctuation is enumerator residue ("Algebra." -> "Algebra").
+    cleaned = cleaned.rstrip(" \t-–—:.")
+    # Leading whitespace, dashes, and colons are residue too, but a dot is only
+    # residue when it is not glued to a word: ".NET" and ".env" are part of the
+    # topic, while ". Introduction" and "..." are not.
+    cleaned = re.sub(r"^[\s\-–—:]+", "", cleaned)
+    if cleaned.startswith(".") and not cleaned[1:2].isalnum():
+        cleaned = re.sub(r"^\.+[\s\-–—:]*", "", cleaned)
+    return cleaned.strip()
 
 
 def parse_topics(raw_text: str, *, max_topics: int = 40) -> list[str]:
