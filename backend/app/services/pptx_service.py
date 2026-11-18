@@ -29,6 +29,8 @@ _SLIDE_WIDTH = Inches(13.333)
 _SLIDE_HEIGHT = Inches(7.5)
 _MAX_BULLETS = 5
 _MIN_BODY_PT = 24.0
+# Body lines that fit on the sources slide without overflowing its text box.
+_MAX_SOURCES_LINES = 16
 
 
 def build_presentation(
@@ -152,19 +154,24 @@ def _add_sources_slide(presentation: Presentation, slides: list[Slide]) -> None:
     frame = body_box.text_frame
     frame.word_wrap = True
 
-    lines: list[str] = []
+    listing: list[str] = []
     if grounded:
         for content_slide in grounded:
-            lines.append(f"{content_slide.slide_title}:")
+            listing.append(f"{content_slide.slide_title}:")
             for source in content_slide.sources[:3]:
-                lines.append(f"    {source}")
+                listing.append(f"    {source}")
     else:
-        lines.append("Web research was not used for this deck.")
-        lines.append("Slide content reflects the drafting model's general knowledge.")
-    lines.append("")
-    lines.append("Review before teaching: automated content can contain errors.")
+        listing.append("Web research was not used for this deck.")
+        listing.append("Slide content reflects the drafting model's general knowledge.")
 
-    for index, line in enumerate(lines[:16]):
+    # The slide is a fixed size, so the source listing is capped. The review
+    # disclaimer is not part of that budget: it is the one warning the deck must
+    # always carry, so it is appended after the cap rather than competing for a
+    # line inside it.
+    footer = ["", "Review before teaching: automated content can contain errors."]
+    lines = listing[: _MAX_SOURCES_LINES - len(footer)] + footer
+
+    for index, line in enumerate(lines):
         paragraph = frame.paragraphs[0] if index == 0 else frame.add_paragraph()
         _write(paragraph, line, size=14 if line.startswith("    ") else 16, color=_MUTED)
 

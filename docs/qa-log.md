@@ -2,13 +2,13 @@
 
 Newest entry first. One entry per daily run.
 
-## 2026-11-14 — a provider 200 with a non-JSON body crashed the whole deck
+## 2026-11-18 — PPTX sources slide silently drops the review disclaimer
 
-- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
-- QA: 9 checks run, 9 passed, 0 failed. Also ran the harness live against the demo server (10/10 scored, TC-08/TC-12 skipped by design).
-- Found: `LLMService._call_model` called `response.json()` without guarding it, so a provider (or a gateway in front of it) returning HTTP 200 with an HTML body raised `JSONDecodeError`, which escaped the retry loop and turned the request into HTTP 500 — the opposite of "a deck always finishes". Repro: a transport returning `httpx.Response(200, text="<html>502 Bad Gateway</html>")` -> `POST /api/v1/generate` returned 500 instead of a deck with flagged placeholders.
-- Fixed: `backend/app/services/llm.py` now catches the JSON decode failure and raises `LLMError`, so the topic degrades to a placeholder like any other provider failure. Added 3 tests (llm, pipeline, API); all 3 fail on the old code.
-- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`; the proxy 403 recorded in `docs/evaluation.md` still stands.
+- Baseline: `make test` 97 backend + 45 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 98 backend + 45 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: `_add_sources_slide` appended the "Review before teaching" line to the listing and then rendered `lines[:16]`. With four or more web-researched topics the listing alone exceeds 16 lines, so the disclaimer was cut off the slide. Repro: build 7 grounded slides with two sources each and read the last slide's body — `"Review before teaching" in sources_body` is False. The one warning every deck is supposed to carry was the first thing dropped.
+- Fixed: the source listing is capped at `_MAX_SOURCES_LINES` minus the footer, and the blank line plus the review disclaimer are appended after the cap, so they always render. Added `test_sources_slide_always_keeps_the_review_disclaimer` (fails before, passes after).
+- Could not verify: `make eval` (live, real model) — no `OPENROUTER_API_KEY`; the live harness ran against the demo server instead (10/10 executed, 2 skipped by design).
 
 ## 2026-11-10 — parser strips a leading dot that belongs to the topic
 
