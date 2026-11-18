@@ -111,6 +111,16 @@ async def test_http_error_is_reported_not_raised():
 
 
 @pytest.mark.asyncio
+async def test_non_json_success_body_is_reported_not_raised():
+    # A gateway can answer 200 with an HTML error page. Parsing it must fail as
+    # an LLMError so the topic degrades, not escape as a JSONDecodeError.
+    service, _ = build_service([httpx.Response(200, text="<html>502 Bad Gateway</html>")])
+    result = await service.draft_topic("Next.js", depth=Depth.HIGH_LEVEL)
+    assert result.content is None
+    assert "non-JSON" in (result.error or "")
+
+
+@pytest.mark.asyncio
 async def test_timeout_is_reported():
     def raise_timeout(_body):
         raise httpx.ReadTimeout("timed out")

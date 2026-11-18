@@ -187,7 +187,16 @@ class LLMService:
                         headers=headers,
                     )
                 response.raise_for_status()
-            data = response.json()
+            try:
+                data = response.json()
+            except ValueError as exc:
+                # A gateway in front of the provider can answer 200 with an HTML
+                # error page. That is a failed call, not a crash: the retry loop
+                # must see an LLMError so the topic degrades to a placeholder
+                # instead of aborting the whole deck with a 500.
+                raise LLMError(
+                    f"model returned a non-JSON response: {response.text[:200]}"
+                ) from exc
         except httpx.TimeoutException as exc:
             raise LLMError(f"model timed out after {self._settings.llm_timeout_seconds}s") from exc
         except httpx.HTTPStatusError as exc:
