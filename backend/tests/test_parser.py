@@ -142,6 +142,39 @@ def test_strips_dotted_section_numbers(raw, expected):
 
 
 @pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("1. C\n2. Python\n3. R", ["C", "Python", "R"]),
+        ("1. R", ["R"]),
+        ("a", ["a"]),
+        ("X", ["X"]),
+    ],
+)
+def test_keeps_single_character_topics(raw, expected):
+    # A one-character topic is a real topic ("C", "R", and "X" are course
+    # languages and subjects). The parser used to drop anything shorter than
+    # two characters, silently removing a slide.
+    assert parse_topics(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "1. )",
+        "1.)",
+        "-)",
+        ".",
+        ":",
+        "1.2.3.",
+    ],
+)
+def test_punctuation_only_lines_are_not_topics(raw):
+    # Enumerator residue that strips to pure punctuation must not become a
+    # topic once the one-character floor is removed.
+    assert parse_topics(raw) == []
+
+
+@pytest.mark.parametrize(
     "topic",
     [
         "3.5mm audio jack",
@@ -154,6 +187,64 @@ def test_keeps_numeric_prefixes_that_are_part_of_the_topic(topic):
     # so a unit suffix protects it.
     assert parse_topics(topic) == [topic]
 
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("Unit 1.1 Foundations", ["Foundations"]),
+        ("Module 2.3 Cells", ["Cells"]),
+        ("Lesson 3.2 Photosynthesis", ["Photosynthesis"]),
+        ("Session 4.1 Review", ["Review"]),
+        ("Week 2.1 Recap", ["Recap"]),
+        ("Day 1.2 Lab", ["Lab"]),
+        ("Unit 12.34 Advanced", ["Advanced"]),
+        ("Unit 1.1. Foundations", ["Foundations"]),
+        ("Module 2.3. Cells", ["Cells"]),
+    ],
+)
+def test_strips_dotted_numbers_after_a_header_word(raw, expected):
+    # "Unit 1.1 Foundations" is a header word plus a dotted section number. The
+    # header branch required an explicit terminator, so it backtracked to the
+    # plain-number form, matched only "Unit 1.", and left the trailing digit as
+    # the topic: "1 Foundations". The dotted-number form now takes the same
+    # whitespace terminator as the bare "1.1 Mitosis" case.
+    assert parse_topics(raw) == expected
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        "E. coli",
+        "C. elegans",
+        "H. pylori",
+        "S. aureus",
+        "T. rex",
+        "X.509 certificates",
+    ],
+)
+def test_keeps_single_letter_genus_abbreviations_intact(topic):
+    # "E. coli" and "C. elegans" are genus abbreviations, not enumerators. The
+    # capital-letter branch matched the leading letter, dropped the dot, and
+    # returned "coli" / "elegans", silently corrupting the topic and its slide
+    # title. A lowercase word after the dot is the signal that the letter
+    # belongs to the word.
+    assert parse_topics(topic) == [topic]
+    assert parse_topics(f"1. {topic}") == [topic]
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("A. Introduction", "Introduction"),
+        ("B. Methods", "Methods"),
+        ("a. vectors", "vectors"),
+        ("b. Vectors", "Vectors"),
+    ],
+)
+def test_still_strips_single_letter_enumerators(raw, expected):
+    # A single letter followed by a dot and a capitalised word is a real
+    # enumerator ("A. Introduction"). The genus fix must not stop these from
+    # being stripped.
+    assert parse_topics(raw)[0] == expected
 
 @pytest.mark.parametrize(
     "topic",

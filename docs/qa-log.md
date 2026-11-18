@@ -2,12 +2,12 @@
 
 Newest entry first. One entry per daily run.
 
-## 2026-11-16 — harness fails a deck that mentions placeholders
+## 2026-11-18 — PPTX sources slide silently drops the review disclaimer
 
-- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
+- Baseline: `make test` 97 backend + 45 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 98 backend + 45 harness
 - QA: 9 checks run, 9 passed, 0 failed
-- Found: `PLACEHOLDER_MARKERS` in `evaluation/scoring.py` listed the bare word `"placeholder"` and `placeholder_hits` is a substring test, so a legitimately produced slide that teaches the word (HTML `placeholder` attribute, SQL bind placeholders, "start with a placeholder value") tripped the gating `no_placeholder_leak` check and failed the case with "placeholder wording on a non-degraded slide". Repro: `backend/.venv/bin/python -c "import sys; sys.path.insert(0,'evaluation'); from scoring import placeholder_hits; print(placeholder_hits('The placeholder attribute shows hint text.'))"` -> `['placeholder']`. A believable failure that sends the reader to fix a pipeline that never degraded.
-- Fixed: replaced the bare word with the pipeline's own placeholder phrasing (`could not be researched or drafted automatically`, `review the syllabus entry and regenerate`), keeping `automatic generation failed` and `lorem ipsum`. Real placeholders are still caught; the word alone is not. Added 8 tests. Harness suite 51 passed, mock-eval 12/12.
+- Found: `_add_sources_slide` appended the "Review before teaching" line to the listing and then rendered `lines[:16]`. With four or more web-researched topics the listing alone exceeds 16 lines, so the disclaimer was cut off the slide. Repro: build 7 grounded slides with two sources each and read the last slide's body — `"Review before teaching" in sources_body` is False. The one warning every deck is supposed to carry was the first thing dropped.
+- Fixed: the source listing is capped at `_MAX_SOURCES_LINES` minus the footer, and the blank line plus the review disclaimer are appended after the cap, so they always render. Added `test_sources_slide_always_keeps_the_review_disclaimer` (fails before, passes after).
 - Could not verify: `make eval` (live, real model) — no `OPENROUTER_API_KEY`; the live harness ran against the demo server instead (10/10 executed, 2 skipped by design).
 
 ## 2026-11-10 — parser strips a leading dot that belongs to the topic

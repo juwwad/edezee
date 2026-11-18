@@ -215,6 +215,34 @@ def test_stream_emits_progress_then_done(client):
     assert done["deck_base64"]
 
 
+def test_non_json_provider_response_does_not_500():
+    """A provider 200 with an HTML body must not become an HTTP 500.
+
+    Gateways and CDNs in front of the model sometimes return an HTML error page
+    with a 200 status. The deck must still finish: every topic degrades to a
+    flagged placeholder rather than the request failing outright.
+    """
+    settings = make_settings(max_topic_attempts=1)
+
+    class HtmlTransport(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request):
+            return httpx.Response(200, text="<html>502 Bad Gateway</html>", request=request)
+
+    llm = LLMService(settings, client=httpx.AsyncClient(transport=HtmlTransport()))
+    app = create_app(settings)
+    app.state.pipeline = Pipeline(settings, llm=llm, research=ResearchService(settings))
+    with TestClient(app, raise_server_exceptions=False) as test_client:
+        response = test_client.post(
+            "/api/v1/generate",
+            json={"syllabus_text": "1. Topic 1\n2. Topic 2", "depth": "High-Level"},
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.content[:2] == b"PK"
+    diagnostics = json.loads(response.headers["x-edezee-diagnostics"])
+    assert diagnostics["degraded_slides"] == 2
+
+
 def test_stream_reports_pipeline_error_as_event():
     settings = make_settings()
     app = create_app(settings)

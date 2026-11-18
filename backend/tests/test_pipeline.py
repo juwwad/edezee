@@ -11,7 +11,7 @@ import json
 import httpx
 import pytest
 
-from app.models import Depth, Grounding
+from app.models import Depth, Grounding, Slide
 from app.services.llm import LLMService
 from app.services.pipeline import Pipeline, PipelineError
 from app.services.pptx_service import build_presentation
@@ -81,6 +81,25 @@ async def test_one_failing_topic_degrades_to_placeholder():
     assert slides[1].grounding is Grounding.PLACEHOLDER
     assert slides[0].degraded is False
     assert slides[2].degraded is False
+
+
+@pytest.mark.asyncio
+async def test_non_json_provider_response_degrades_to_placeholder():
+    # A 200 response with a non-JSON body (a gateway HTML error page) must
+    # degrade the topic, not abort the run. "A deck always finishes" applies to
+    # every provider failure, not just HTTP error codes.
+    responses = [
+        llm_response(content_for("Topic 1")),
+        httpx.Response(200, text="<html>502 Bad Gateway</html>"),
+        llm_response(content_for("Topic 3")),
+    ]
+    pipeline = build_pipeline(responses, max_topic_attempts=1)
+    _, slides, diag = await pipeline.generate(
+        "1. Topic 1\n2. Topic 2\n3. Topic 3", depth=Depth.HIGH_LEVEL
+    )
+    assert len(slides) == 3
+    assert diag.degraded_slides == 1
+    assert slides[1].grounding is Grounding.PLACEHOLDER
 
 
 @pytest.mark.asyncio
@@ -179,3 +198,35 @@ async def test_generated_deck_is_valid_pptx():
     joined = "\n".join(texts)
     assert "Topic 1" in joined
     assert "Sources & Method" in joined
+
+
+@pytest.mark.asyncio
+async def test_sources_slide_always_keeps_the_review_disclaimer():
+    """A web-researched deck must carry the review warning, however many sources.
+
+    The sources slide caps its body at a fixed number of lines. The disclaimer
+    used to be appended before that cap, so once the source listing was long
+    enough -- four or more web-researched topics -- the cap cut the warning off
+    the slide. It is the one line the deck must always show, so it is now kept
+    outside the cap.
+    """
+    from io import BytesIO
+
+    from pptx import Presentation
+
+    slides = [
+        Slide(
+            topic=f"Topic {i}",
+            slide_number=i,
+            slide_title=f"Topic {i}",
+            bullet_points=["A point."],
+            grounding=Grounding.RESEARCH,
+            sources=[f"https://example.org/{i}/a", f"https://example.org/{i}/b"],
+        )
+        for i in range(1, 8)
+    ]
+    prs = Presentation(BytesIO(build_presentation(slides, deck_title="T")))
+    sources_body = [
+        shape.text_frame.text for shape in prs.slides[-1].shapes if shape.has_text_frame
+    ][-1]
+    assert "Review before teaching" in sources_body

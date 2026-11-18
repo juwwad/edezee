@@ -36,16 +36,28 @@ _ENUM_TAIL = r"(?:\s*[.):]+\s*|\s*\.(?!\d)\s*|\s+[-–—]\s+)"
 # A plain number only terminates on punctuation, so "1 Introduction" and
 # "C programming" keep their leading token; a dotted number may also terminate
 # on whitespace, because "1.1 Mitosis" is unambiguously an enumerator.
+# A header word followed by a dotted number takes the same whitespace
+# terminator, so "Unit 1.1 Foundations" strips whole. Without it the header
+# branch backtracked to the plain-number form, matched only "Unit 1.", and left
+# the trailing digit as the topic ("1 Foundations").
 # A single letter is only an enumerator when its dot is not followed by another
 # letter. "A. Introduction" is an enumerator, but the dot in "U.S. history" or
 # "e.g. how TCP works" is part of the word, so eating the leading letter would
 # corrupt the topic into "S. history".
+# A capitalised single letter followed by a dot and a lowercase word is also
+# part of the word, not an enumerator: "E. coli", "C. elegans", "H. pylori" are
+# genus abbreviations, and "X.509" is a standard name. Treating them as
+# enumerators dropped the first letter and produced "coli", "elegans",
+# "509 certificates". A real single-letter enumerator is followed by a
+# capitalised word ("A. Introduction"), so the lowercase continuation is the
+# signal that distinguishes the two.
 _ENUMERATOR = re.compile(
     r"^\s*(?:"
-    r"(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+(?:\.\d+)*" + _ENUM_TAIL +
+    r"(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+(?:\.\d+)+(?:" + _ENUM_TAIL + r"|\s+)"
+    r"|(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+" + _ENUM_TAIL +
     r"|\d+(?:\.\d+)+(?:" + _ENUM_TAIL + r"|\s+)"
     r"|\d+(?!\.\d)" + _ENUM_TAIL +
-    r"|[a-zA-Z](?![.][A-Za-z])" + _ENUM_TAIL +
+    r"|(?!(?-i:[A-Z]\.\s*[a-z0-9]))[a-zA-Z](?![.][A-Za-z])" + _ENUM_TAIL +
     r")",
     re.I,
 )
@@ -94,7 +106,11 @@ def parse_topics(raw_text: str, *, max_topics: int = 40) -> list[str]:
         for chunk in chunks:
             topic = _strip_enumerator(chunk)
             topic = re.sub(r"\s{2,}", " ", topic).strip()
-            if len(topic) < 2 or _is_noise(topic):
+            # A chunk that strips to pure punctuation (")", ".", ":") is
+            # enumerator residue. It is not a topic. A single alphanumeric
+            # character is: "1. C", "2. R", and "a" are real course topics, and
+            # dropping them silently removes a slide.
+            if not any(char.isalnum() for char in topic) or _is_noise(topic):
                 continue
             candidates.append(topic)
 
