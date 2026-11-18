@@ -2,12 +2,13 @@
 
 Newest entry first. One entry per daily run.
 
-## 2026-11-13 — parser drops the first letter of genus abbreviations
+## 2026-11-18 — PPTX sources slide silently drops the review disclaimer
 
-- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK
+- Baseline: `make test` 97 backend + 45 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 98 backend + 45 harness
 - QA: 9 checks run, 9 passed, 0 failed
-- Found: `parse_topics("E. coli")` returned `["coli"]` and `parse_topics("X.509 certificates")` returned `["509 certificates"]`. The capital-single-letter enumerator branch matched the leading letter, so the slide title lost it. Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('E. coli'))"`
-- Fixed: `parser.py` treats a capital letter followed by a dot and a lowercase word (`E. coli`, `C. elegans`, `X.509`) as part of the topic; `A. Introduction` is still stripped. Added 10 tests.
+- Found: `_add_sources_slide` appended the "Review before teaching" line to the listing and then rendered `lines[:16]`. With four or more web-researched topics the listing alone exceeds 16 lines, so the disclaimer was cut off the slide. Repro: build 7 grounded slides with two sources each and read the last slide's body — `"Review before teaching" in sources_body` is False. The one warning every deck is supposed to carry was the first thing dropped.
+- Fixed: the source listing is capped at `_MAX_SOURCES_LINES` minus the footer, and the blank line plus the review disclaimer are appended after the cap, so they always render. Added `test_sources_slide_always_keeps_the_review_disclaimer` (fails before, passes after).
+- Could not verify: `make eval` (live, real model) — no `OPENROUTER_API_KEY`; the live harness ran against the demo server instead (10/10 executed, 2 skipped by design).
 
 ## 2026-11-10 — parser strips a leading dot that belongs to the topic
 
