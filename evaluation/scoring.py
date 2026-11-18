@@ -16,11 +16,17 @@ import re
 
 # Wording the pipeline emits when a topic exhausts its retries. Unambiguous: if
 # any of these appears in a slide that is not flagged as degraded, the flag is
-# wrong.
+# wrong. These are the pipeline's own phrases (see ``PLACEHOLDER_BULLETS`` and
+# the placeholder speaker note in ``pipeline.py``), not the English word
+# "placeholder": that word is legitimate slide vocabulary ("the placeholder
+# attribute shows hint text", "start with a placeholder value"), and matching it
+# as a substring failed any slide that taught the concept. A believable failure
+# on a deck that never degraded is worse than no check at all.
 PLACEHOLDER_MARKERS = [
     "automatic generation failed",
+    "could not be researched or drafted automatically",
+    "review the syllabus entry and regenerate",
     "lorem ipsum",
-    "placeholder",
 ]
 
 # Phrasing that suggests the model wrote around the topic instead of about it.

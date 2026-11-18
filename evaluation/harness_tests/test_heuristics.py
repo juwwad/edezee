@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # evaluation/
 
 from baseline import _injection_leaked  # noqa: E402
 from run_eval import CaseScore, gating_checks_pass, score_plan  # noqa: E402
-from scoring import is_specific  # noqa: E402
+from scoring import is_specific, placeholder_hits  # noqa: E402
 
 
 def slide(title: str, bullets: list[str], notes: str = "Guidance for the teacher.") -> dict:
@@ -307,3 +307,73 @@ class TestPlaceholderAssertionIsReachable:
         )
         assert "placeholder_present" not in score.checks
         assert score.checks.get("completed_despite_failure") is True
+
+
+class TestPlaceholderMarkerDoesNotFireOnTheWordItself:
+    """The word "placeholder" is legitimate slide vocabulary.
+
+    `PLACEHOLDER_MARKERS` is a substring test, and it listed the bare word
+    "placeholder". A slide that teaches HTML input placeholders, SQL bind
+    placeholders, or a "start with a placeholder value" example therefore
+    tripped the `no_placeholder_leak` gate -- a gating check -- and failed the
+    case with the message "placeholder wording on a non-degraded slide". That is
+    a believable failure that sends the reader to fix a pipeline that never
+    degraded anything, which is the exact class of harness defect these tests
+    exist to prevent. The markers must match the pipeline's placeholder phrasing,
+    not the English word.
+    """
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "The placeholder attribute shows hint text inside an empty input.",
+            "Start with a placeholder value such as x = 0 before reassigning it.",
+            "Named placeholders in SQL let one statement be reused with new values.",
+            "A template placeholder is replaced at render time.",
+        ],
+    )
+    def test_legitimate_placeholder_vocabulary_is_not_a_leak(self, text):
+        assert placeholder_hits(text) == []
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "This topic could not be researched or drafted automatically.",
+            "Automatic generation failed for this topic. Reason: HTTP 503.",
+            "Lorem ipsum dolor sit amet.",
+        ],
+    )
+    def test_pipeline_placeholder_wording_is_still_detected(self, text):
+        assert placeholder_hits(text) != []
+
+    def test_a_slide_about_placeholders_does_not_fail_the_case(self):
+        body = {
+            "deck_title": "Course Presentation",
+            "slides": [
+                {
+                    "topic": "HTML form placeholders",
+                    "slide_number": 1,
+                    "slide_title": "HTML form placeholders",
+                    "bullet_points": [
+                        "The placeholder attribute shows hint text inside an empty input.",
+                        "Placeholder text disappears as soon as the learner starts typing.",
+                    ],
+                    "speaker_notes": (
+                        "Show learners how a placeholder is a hint, never a submitted value."
+                    ),
+                    "grounding": "model-knowledge",
+                    "sources": [],
+                    "attempts": 1,
+                    "degraded": False,
+                    "error": None,
+                }
+            ],
+            "diagnostics": {"degraded_slides": 0, "warnings": []},
+        }
+        expected = {"topics": 1, "min_slides": 1, "max_degraded": 0, "status": 200,
+                    "max_latency_ms": 180_000}
+        score = CaseScore(case_id="X", name="X", category="happy", passed=False,
+                          status=200, latency_ms=10)
+        score_plan(score, body, {"id": "X"}, expected)
+        assert score.checks["no_placeholder_leak"] is True
+        assert score.passed is True, score.failures
