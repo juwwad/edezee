@@ -189,6 +189,28 @@ def test_keeps_numeric_prefixes_that_are_part_of_the_topic(topic):
 
 
 @pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("Unit 1.1 Foundations", ["Foundations"]),
+        ("Module 2.3 Cells", ["Cells"]),
+        ("Lesson 3.2 Photosynthesis", ["Photosynthesis"]),
+        ("Session 4.1 Review", ["Review"]),
+        ("Week 2.1 Recap", ["Recap"]),
+        ("Day 1.2 Lab", ["Lab"]),
+        ("Unit 12.34 Advanced", ["Advanced"]),
+        ("Unit 1.1. Foundations", ["Foundations"]),
+        ("Module 2.3. Cells", ["Cells"]),
+    ],
+)
+def test_strips_dotted_numbers_after_a_header_word(raw, expected):
+    # "Unit 1.1 Foundations" is a header word plus a dotted section number. The
+    # header branch required an explicit terminator, so it backtracked to the
+    # plain-number form, matched only "Unit 1.", and left the trailing digit as
+    # the topic: "1 Foundations". The dotted-number form now takes the same
+    # whitespace terminator as the bare "1.1 Mitosis" case.
+    assert parse_topics(raw) == expected
+
+@pytest.mark.parametrize(
     "topic",
     [
         "E. coli",
