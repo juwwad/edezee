@@ -2,14 +2,13 @@
 
 Newest entry first. One entry per daily run.
 
-## 2026-11-12 — parser silently drops single-character topics
+## 2026-11-18 — PPTX sources slide silently drops the review disclaimer
 
-- Baseline: `make test` 94 backend + 43 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 104 backend + 43 harness
+- Baseline: `make test` 97 backend + 45 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 98 backend + 45 harness
 - QA: 9 checks run, 9 passed, 0 failed
-- Found: `parse_topics` skipped any topic shorter than two characters (`if len(topic) < 2`), so a one-character topic never reached a slide, contradicting the parser's own contract ("must never ... silently drop content"). Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('1. C\n2. Python\n3. R'))"` -> `['Python']`; via the API, `1. C\n2. Python\n3. R` returned `topic_count 1`, not 3. `1. R` and `a` returned no topics at all.
-- Fixed: the guard now drops only chunks with no alphanumeric character (enumerator residue like `)`, `.`, `:`), so `C`, `R`, and `X` survive while punctuation-only lines still do not become topics. Added 10 parametrized tests; all four single-character cases fail before the fix and pass after.
-- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
-- Not fixed (recorded): documented test counts are stale. `memory.md:6` says 64 backend / 35 harness; `docs/ai-collaboration.md:24` says 64; `docs/runbook.md:68` says 69; `docs/evaluation.md:297` and `:314` say 35 harness / 69 backend. Actual on this run: 94 backend / 43 harness before the fix. Left alone to keep this PR to one change.
+- Found: `_add_sources_slide` appended the "Review before teaching" line to the listing and then rendered `lines[:16]`. With four or more web-researched topics the listing alone exceeds 16 lines, so the disclaimer was cut off the slide. Repro: build 7 grounded slides with two sources each and read the last slide's body — `"Review before teaching" in sources_body` is False. The one warning every deck is supposed to carry was the first thing dropped.
+- Fixed: the source listing is capped at `_MAX_SOURCES_LINES` minus the footer, and the blank line plus the review disclaimer are appended after the cap, so they always render. Added `test_sources_slide_always_keeps_the_review_disclaimer` (fails before, passes after).
+- Could not verify: `make eval` (live, real model) — no `OPENROUTER_API_KEY`; the live harness ran against the demo server instead (10/10 executed, 2 skipped by design).
 
 ## 2026-11-10 — parser strips a leading dot that belongs to the topic
 
