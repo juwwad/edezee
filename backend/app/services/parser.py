@@ -40,12 +40,19 @@ _ENUM_TAIL = r"(?:\s*[.):]+\s*|\s*\.(?!\d)\s*|\s+[-–—]\s+)"
 # letter. "A. Introduction" is an enumerator, but the dot in "U.S. history" or
 # "e.g. how TCP works" is part of the word, so eating the leading letter would
 # corrupt the topic into "S. history".
+# A capitalised single letter followed by a dot and a lowercase word is also
+# part of the word, not an enumerator: "E. coli", "C. elegans", "H. pylori" are
+# genus abbreviations, and "X.509" is a standard name. Treating them as
+# enumerators dropped the first letter and produced "coli", "elegans",
+# "509 certificates". A real single-letter enumerator is followed by a
+# capitalised word ("A. Introduction"), so the lowercase continuation is the
+# signal that distinguishes the two.
 _ENUMERATOR = re.compile(
     r"^\s*(?:"
     r"(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+(?:\.\d+)*" + _ENUM_TAIL +
     r"|\d+(?:\.\d+)+(?:" + _ENUM_TAIL + r"|\s+)"
     r"|\d+(?!\.\d)" + _ENUM_TAIL +
-    r"|[a-zA-Z](?![.][A-Za-z])" + _ENUM_TAIL +
+    r"|(?!(?-i:[A-Z]\.\s*[a-z0-9]))[a-zA-Z](?![.][A-Za-z])" + _ENUM_TAIL +
     r")",
     re.I,
 )
