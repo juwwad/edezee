@@ -2,6 +2,15 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-19 — JSON repair destroys valid output when a topic has an apostrophe
+
+- Baseline: `make test` 130 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 132 backend + 53 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: `_load_json` stripped trailing commas and then unconditionally replaced every `'` with `"`. When the payload contained a possessive ("Parkinson's"), the comma fix had already made the text valid JSON and the quote swap then corrupted it, so all retries failed and the topic degraded to a placeholder. Repro: `LLMService._load_json('{"slide_title": "Parkinson\'s disease", "bullet_points": ["a",], "speaker_notes": "x"}')` -> `LLMError: Expecting ',' delimiter`.
+- Fixed: repairs are tried in order (raw, commas removed, commas removed + quotes swapped) and the first text that parses is kept, so the quote swap only runs when it is what makes the text valid. Added 2 tests; verified end to end through `draft_topic` that the topic now succeeds in 1 HTTP call instead of 3 failed attempts.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`. Also seen, not fixed: the greedy `\{.*\}` fallback still fails on output with trailing prose braces or two JSON objects ("Extra data"); left out of scope for this change.
+- Note: `npm run build` on `main` stops once with Next.js 16's `SecurityFatalError` upgrade nudge and succeeds on an immediate retry. Expected upstream behaviour, not a repo defect. `next upgrade` was not run.
+
 ## 2026-11-18 — PPTX sources slide silently drops the review disclaimer
 
 - Baseline: `make test` 97 backend + 45 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 98 backend + 45 harness

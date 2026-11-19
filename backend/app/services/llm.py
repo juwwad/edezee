@@ -280,15 +280,29 @@ class LLMService:
             if not match:
                 raise LLMError("model output contained no JSON object") from None
             candidate = match.group(0)
-            try:
-                payload = json.loads(candidate)
-            except json.JSONDecodeError:
-                candidate = re.sub(r",\s*([}\]])", r"\1", candidate)  # trailing commas
-                candidate = candidate.replace("'", '"')
+            # Repairs are applied in order and the first one that parses wins.
+            # Each step is cumulative but is only kept if the text becomes valid
+            # JSON: swapping every single quote for a double quote mangles a
+            # possessive ("Parkinson's"), so it must not run when removing
+            # trailing commas has already produced a valid document.
+            without_trailing_commas = re.sub(r",\s*([}\]])", r"\1", candidate)
+            attempts = [
+                candidate,
+                without_trailing_commas,
+                without_trailing_commas.replace("'", '"'),
+            ]
+            payload = None
+            last_error: json.JSONDecodeError | None = None
+            for attempt in attempts:
                 try:
-                    payload = json.loads(candidate)
+                    payload = json.loads(attempt)
+                    break
                 except json.JSONDecodeError as exc:
-                    raise LLMError(f"model output was not valid JSON: {exc.msg}") from exc
+                    last_error = exc
+            if payload is None:
+                raise LLMError(
+                    f"model output was not valid JSON: {last_error.msg if last_error else 'unknown error'}"
+                ) from None
             repaired = True
 
         if not isinstance(payload, dict):
