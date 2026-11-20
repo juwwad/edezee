@@ -51,12 +51,25 @@ _ENUM_TAIL = r"(?:\s*[.):]+\s*|\s*\.(?!\d)\s*|\s+[-–—]\s+)"
 # "509 certificates". A real single-letter enumerator is followed by a
 # capitalised word ("A. Introduction"), so the lowercase continuation is the
 # signal that distinguishes the two.
+#
+# A Roman-numeral list ("I.", "II.", "III.") is a numbered list, but only the
+# one-character form matched the single-letter rule above: "I. Introduction"
+# stripped while "II. Methods" did not, so one deck carried topics "Methods" and
+# "II. Methods". The numeral is matched in canonical form and must be at least
+# two characters, because the single-letter branch already covers "I", "V", and
+# "X". It inherits the same lowercase guard as a single letter, so an
+# abbreviation such as "CIV. law" or "MIX. audio" is not eaten as an
+# enumerator.
+_ROMAN_NUMERAL = (
+    r"(?=[IVXLCDM]{2,})M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})"
+)
 _ENUMERATOR = re.compile(
     r"^\s*(?:"
     r"(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+(?:\.\d+)+(?:" + _ENUM_TAIL + r"|\s+)"
     r"|(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+" + _ENUM_TAIL +
     r"|\d+(?:\.\d+)+(?:" + _ENUM_TAIL + r"|\s+)"
     r"|\d+(?!\.\d)" + _ENUM_TAIL +
+    r"|(?!(?-i:[IVXLCDM]{2,}\.\s*[a-z0-9]))" + _ROMAN_NUMERAL + _ENUM_TAIL +
     r"|(?!(?-i:[A-Z]\.\s*[a-z0-9]))[a-zA-Z](?![.][A-Za-z])" + _ENUM_TAIL +
     r")",
     re.I,

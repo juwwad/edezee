@@ -260,3 +260,49 @@ def test_keeps_leading_dot_topics_intact(topic):
     # "NET programming" and ".env configuration" into "env configuration".
     assert parse_topics(topic) == [topic]
     assert parse_topics(f"1. {topic}") == [topic]
+
+
+def test_strips_roman_numeral_enumerators_from_every_line():
+    # Only the one-character form matched the single-letter rule, so a Roman
+    # list stripped its first topic and left the numeral on the rest:
+    # ['Introduction', 'II. Methods', 'III. Results', 'IV. Discussion'].
+    text = "I. Introduction\nII. Methods\nIII. Results\nIV. Discussion"
+    assert parse_topics(text) == ["Introduction", "Methods", "Results", "Discussion"]
+
+
+@pytest.mark.parametrize(
+    "raw,expected_first",
+    [
+        ("II. The cell membrane", "The cell membrane"),
+        ("iii. Mitosis", "Mitosis"),
+        ("IV) Osmosis", "Osmosis"),
+        ("VII. Cell signalling", "Cell signalling"),
+        ("IX. The Krebs cycle", "The Krebs cycle"),
+        ("ii.) Diffusion", "Diffusion"),
+    ],
+)
+def test_roman_numeral_enumerator_variants(raw, expected_first):
+    assert parse_topics(raw)[0] == expected_first
+
+
+@pytest.mark.parametrize(
+    "topic",
+    [
+        "CIVIL. law",
+        "MIX. audio",
+        "MILD. weather",
+        "CIV. law",
+        "DID. it work",
+    ],
+)
+def test_keeps_roman_looking_abbreviations_intact(topic):
+    # A run of Roman-numeral letters followed by a dot and a lowercase word is
+    # an abbreviation, not an enumerator -- the same signal that protects
+    # "E. coli" and "U.S. history". "CIVIL. law" must not become "law".
+    assert parse_topics(topic) == [topic]
+
+
+def test_keeps_roman_numeral_standards_intact():
+    # "X.509" is a standard name, not an enumerator: the dot is followed by a
+    # digit, not a space and a capitalised word.
+    assert parse_topics("X.509 certificates") == ["X.509 certificates"]
