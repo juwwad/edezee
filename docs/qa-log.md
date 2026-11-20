@@ -2,6 +2,15 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-20 — Roman-numeral syllabus lists strip only their first enumerator
+
+- Baseline: `make test` 130 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 143 backend + 53 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: the `_ENUMERATOR` single-letter branch matched only one character, so in a Roman-numeral list the first line stripped and the rest kept their numeral. `parse_topics('I. Introduction\nII. Methods\nIII. Results')` -> `['Introduction', 'II. Methods', 'III. Results']`. The deck then carried slide titles `II. The cell membrane` and `III. Mitosis` next to a clean `Introduction to cells`. Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('I. Introduction\nII. Methods'))"`
+- Fixed: added a canonical Roman-numeral alternative to `_ENUMERATOR`, requiring two or more characters so the existing single-letter rule still covers `I`, `V`, `X`, and reusing the lowercase guard that protects `E. coli` and `U.S. history`. `CIVIL. law`, `MIX. audio`, and `X.509 certificates` are unchanged. Added 13 tests; the list and variant cases fail before the fix.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
+- Note: PR #36 (apostrophe JSON repair) is still open and unmerged; not repeated here. `npm run build` stops once with Next.js 16's `SecurityFatalError` upgrade nudge and succeeds on retry — expected upstream behaviour, and `next upgrade` was not run.
+
 ## 2026-11-18 — PPTX sources slide silently drops the review disclaimer
 
 - Baseline: `make test` 97 backend + 45 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 98 backend + 45 harness
