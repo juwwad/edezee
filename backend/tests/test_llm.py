@@ -71,6 +71,44 @@ async def test_trailing_comma_is_repaired():
 
 
 @pytest.mark.asyncio
+async def test_apostrophe_survives_trailing_comma_repair():
+    """A possessive apostrophe must not break JSON that only needs comma repair.
+
+    Regression guard: the repair step replaced every single quote with a double
+    quote, so a trailing-comma payload that also contained an apostrophe
+    ("Parkinson's") became unparseable. The comma fix had already made the text
+    valid, and the quote swap then destroyed it -- every attempt failed and the
+    topic degraded to a placeholder slide.
+    """
+    broken = (
+        '{"slide_title": "Parkinson\'s disease", '
+        '"bullet_points": ["Loss of dopamine neurons", "Tremor at rest",], '
+        '"speaker_notes": "Contrast with essential tremor."}'
+    )
+    service, transport = build_service([llm_response(broken)])
+    result = await service.draft_topic("Parkinson's disease", depth=Depth.HIGH_LEVEL)
+    assert result.content is not None
+    assert result.error is None
+    assert result.content.slide_title == "Parkinson's disease"
+    assert result.content.bullet_points[0] == "Loss of dopamine neurons"
+    assert len(transport.requests) == 1
+
+
+@pytest.mark.asyncio
+async def test_single_quoted_json_is_still_repaired():
+    """Quotes are only swapped when that is what makes the text valid JSON."""
+    single = (
+        "{'slide_title': 'Routing', 'bullet_points': ['A', 'B'], "
+        "'speaker_notes': 'Note'}"
+    )
+    service, _ = build_service([llm_response(single)])
+    result = await service.draft_topic("Routing", depth=Depth.HIGH_LEVEL)
+    assert result.content is not None
+    assert result.content.slide_title == "Routing"
+    assert result.repaired is True
+
+
+@pytest.mark.asyncio
 async def test_renamed_keys_are_coerced():
     alt = {"title": "Data Fetching", "bullets": ["One", "Two"], "notes": "N"}
     service, _ = build_service([llm_response(alt)])
