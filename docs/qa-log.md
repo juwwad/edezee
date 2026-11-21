@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-21 — UTF-8 BOM corrupts the first parsed topic
+
+- Baseline: `make test` 145 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 149 backend + 53 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: a leading UTF-8 BOM is not whitespace, so `parse_topics` kept it and the enumerator never matched: `"\ufeff1. Photosynthesis\n2. Respiration"` -> `['\ufeff1. Photosynthesis', 'Respiration']`. The first slide was titled `1. Photosynthesis` (with an invisible BOM); a BOM-only paste produced a one-slide deck instead of a 422. Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('\ufeff1. Photosynthesis'))"`
+- Fixed: `parse_topics` removes U+FEFF before the empty-input check, so the enumerator matches and BOM-only input is rejected. Added 4 tests.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
+
 ## 2026-11-19 — JSON repair destroys valid output when a topic has an apostrophe
 
 - Baseline: `make test` 130 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 132 backend + 53 harness
