@@ -105,7 +105,14 @@ def parse_topics(raw_text: str, *, max_topics: int = 40) -> list[str]:
     is applied last so the caller controls truncation explicitly.
     """
 
-    if not raw_text or not raw_text.strip():
+    # A UTF-8 BOM is invisible but is not whitespace, so it stops the leading
+    # enumerator from matching: "\ufeff1. Mitosis" parsed as a topic literally
+    # named "\ufeff1. Mitosis". Drop it before anything else, including the
+    # empty-input check, so a BOM-only paste is rejected instead of becoming a
+    # topic of its own.
+    raw_text = raw_text.replace("\ufeff", "")
+
+    if not raw_text.strip():
         return []
 
     candidates: list[str] = []

@@ -48,6 +48,26 @@ def test_empty_input_returns_empty_list():
     assert parse_topics("   \n\n  ") == []
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("\ufeff1. Photosynthesis\n2. Respiration", ["Photosynthesis", "Respiration"]),
+        ("1. Photosynthesis\n\ufeff2. Respiration", ["Photosynthesis", "Respiration"]),
+        ("\ufeffWeek 1: Foundations", ["Foundations"]),
+    ],
+)
+def test_byte_order_mark_does_not_corrupt_topics(raw, expected):
+    # A syllabus pasted from a UTF-8 file with a BOM used to keep the marker,
+    # which blocked the enumerator match and titled the first slide
+    # "\ufeff1. Photosynthesis".
+    assert parse_topics(raw) == expected
+
+
+def test_byte_order_mark_only_input_is_not_a_topic():
+    assert parse_topics("\ufeff") == []
+    assert parse_topics("\ufeff\n\ufeff") == []
+
+
 def test_splits_semicolon_separated_line():
     text = "Causes of inflation; Effects of inflation; Remedies"
     assert parse_topics(text) == ["Causes of inflation", "Effects of inflation", "Remedies"]
