@@ -14,7 +14,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Iterator
 
 import httpx
 from pydantic import ValidationError
@@ -26,7 +26,44 @@ from app.services.research import ResearchBundle
 logger = logging.getLogger(__name__)
 
 _JSON_FENCE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.S | re.I)
-_JSON_OBJECT = re.compile(r"\{.*\}", re.S)
+
+
+def _iter_balanced_objects(text: str) -> Iterator[str]:
+    """Yield each balanced ``{...}`` substring, outermost first.
+
+    A greedy ``\\{.*\\}`` match spans from the first brace to the last, so a
+    second object or a brace in surrounding prose makes the whole span invalid
+    ("Extra data") even when a complete object is present. Scanning for a
+    balanced object, respecting string literals and escapes, and trying each one
+    recovers the real payload.
+    """
+
+    for start, char in enumerate(text):
+        if char != "{":
+            continue
+        depth = 0
+        in_string = False
+        escaped = False
+        for index in range(start, len(text)):
+            current = text[index]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif current == "\\":
+                    escaped = True
+                elif current == '"':
+                    in_string = False
+                continue
+            if current == '"':
+                in_string = True
+            elif current == "{":
+                depth += 1
+            elif current == "}":
+                depth -= 1
+                if depth == 0:
+                    yield text[start : index + 1]
+                    break
+
 
 _SYSTEM_PROMPT = """You are a curriculum assistant that turns a single syllabus topic into \
 presentation-ready slide content for a teacher.
@@ -276,32 +313,34 @@ class LLMService:
         try:
             payload = json.loads(text)
         except json.JSONDecodeError:
-            match = _JSON_OBJECT.search(text)
-            if not match:
-                raise LLMError("model output contained no JSON object") from None
-            candidate = match.group(0)
-            # Repairs are applied in order and the first one that parses wins.
-            # Each step is cumulative but is only kept if the text becomes valid
-            # JSON: swapping every single quote for a double quote mangles a
-            # possessive ("Parkinson's"), so it must not run when removing
-            # trailing commas has already produced a valid document.
-            without_trailing_commas = re.sub(r",\s*([}\]])", r"\1", candidate)
-            attempts = [
-                candidate,
-                without_trailing_commas,
-                without_trailing_commas.replace("'", '"'),
-            ]
             payload = None
             last_error: json.JSONDecodeError | None = None
-            for attempt in attempts:
-                try:
-                    payload = json.loads(attempt)
+            for candidate in _iter_balanced_objects(text):
+                # Repairs are applied in order and the first one that parses
+                # wins. Each step is cumulative but is only kept if the text
+                # becomes valid JSON: swapping every single quote for a double
+                # quote mangles a possessive ("Parkinson's"), so it must not run
+                # when removing trailing commas has already produced a valid
+                # document.
+                without_trailing_commas = re.sub(r",\s*([}\]])", r"\1", candidate)
+                attempts = [
+                    candidate,
+                    without_trailing_commas,
+                    without_trailing_commas.replace("'", '"'),
+                ]
+                for attempt in attempts:
+                    try:
+                        payload = json.loads(attempt)
+                        break
+                    except json.JSONDecodeError as exc:
+                        last_error = exc
+                if payload is not None:
                     break
-                except json.JSONDecodeError as exc:
-                    last_error = exc
             if payload is None:
+                if last_error is None:
+                    raise LLMError("model output contained no JSON object") from None
                 raise LLMError(
-                    f"model output was not valid JSON: {last_error.msg if last_error else 'unknown error'}"
+                    f"model output was not valid JSON: {last_error.msg}"
                 ) from None
             repaired = True
 
