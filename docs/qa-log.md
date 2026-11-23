@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-23 — numbered numeric topics silently dropped by the parser
+
+- Baseline: `make test` 149 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 154 backend + 53 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: `parse_topics` re-applied the bare-section-number rule to a topic after stripping its enumerator, so a numbered numeric topic vanished. `"1. 1984\n2. 2001"` -> `[]` (request rejected 422 as empty); `"1. 1984\n2. Animal Farm"` -> `['Animal Farm']` (year topic silently lost, no warning). Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('1. 1984\n2. 2001'))"`
+- Fixed: the bare-number heading rule now applies only to a whole line, not to the text left after an enumerator. `"1. 1984"` keeps `1984`; a bare `1984` line is still treated as a heading. Added 5 tests.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
+
 ## 2026-11-21 — UTF-8 BOM corrupts the first parsed topic
 
 - Baseline: `make test` 145 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 149 backend + 53 harness
