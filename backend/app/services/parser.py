@@ -10,7 +10,22 @@ from __future__ import annotations
 
 import re
 
-# Lines that are structural noise rather than teachable topics.
+# Words that end an enumerator ("Week 3:", "Chapter 2 - Methods"). One list
+# feeds both the plain and dotted-number branches. "Chapter" and "Lecture" were
+# missing, so those titles kept their prefix ("Lecture 2: Arrays") while
+# "Week 2: Arrays" lost it. "Section" was in the heading rule but not here, so a
+# bare "Section 1" line was noise while "Section 1: Intro" kept its prefix.
+_HEADER_WORDS = r"week|module|unit|lesson|session|day|class|part|section|chapter|lecture"
+
+# "topic" is an enumerator word but not a heading word: a topic can be named
+# "Topic 1", and treating that as a heading dropped it from the deck.
+_ENUMERATOR_HEADER_WORDS = rf"{_HEADER_WORDS}|topic"
+
+# Lines that are structural noise rather than teachable topics. This list is
+# deliberately narrower than _HEADER_WORDS because it also runs on a topic that
+# survived enumerator stripping: a word here drops a topic literally named that,
+# and "1. Chapter 1" is a topic ("Vague, terse topic names", TC-03), not a
+# heading.
 _STRUCTURAL_PATTERNS = [
     re.compile(r"^(week|module|unit|lesson|session|day|class|part|section)\s*\d*\s*[:.\-–]?\s*$", re.I),
     re.compile(r"^(syllabus|course|outline|schedule|topics?|contents?|overview)\s*[:.\-–]?\s*$", re.I),
@@ -69,9 +84,9 @@ _ROMAN_NUMERAL = (
     r"(?=[IVXLCDM]{2,})M{0,4}(?:CM|CD|D?C{0,3})(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})"
 )
 _ENUMERATOR = re.compile(
-    r"^\s*(?:"
-    r"(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+(?:\.\d+)+(?:" + _ENUM_TAIL + r"|\s+)"
-    r"|(?:week|module|unit|lesson|session|day|class|part|topic)\s*\d+" + _ENUM_TAIL +
+    rf"^\s*(?:"
+    rf"(?:{_ENUMERATOR_HEADER_WORDS})\s*\d+(?:\.\d+)+(?:" + _ENUM_TAIL + rf"|\s+)"
+    rf"|(?:{_ENUMERATOR_HEADER_WORDS})\s*\d+" + _ENUM_TAIL +
     r"|\d+(?:\.\d+)+(?:" + _ENUM_TAIL + r"|\s+)"
     r"|\d+(?!\.\d)" + _ENUM_TAIL +
     r"|(?!(?-i:[IVXLCDM]{2,}\.\s*[a-z0-9]))" + _ROMAN_NUMERAL + _ENUM_TAIL +
