@@ -62,6 +62,45 @@ async def test_prose_wrapped_json_is_repaired():
 
 
 @pytest.mark.asyncio
+async def test_two_json_objects_recovers_the_first():
+    """Two objects must not degrade the topic.
+
+    The old greedy ``\\{.*\\}`` extraction spanned both objects, so ``json.loads``
+    raised "Extra data" and every retry failed.
+    """
+    import json
+
+    two = json.dumps(VALID) + "\n" + json.dumps({"extra": True})
+    service, _ = build_service([llm_response(two)])
+    result = await service.draft_topic("Next.js", depth=Depth.HIGH_LEVEL)
+    assert result.content is not None
+    assert result.content.slide_title == "Introduction to Next.js"
+    assert result.repaired is True
+
+
+@pytest.mark.asyncio
+async def test_brace_in_trailing_prose_is_ignored():
+    import json
+
+    prose = "Here is the slide: " + json.dumps(VALID) + " (see {appendix} for detail)"
+    service, _ = build_service([llm_response(prose)])
+    result = await service.draft_topic("Next.js", depth=Depth.HIGH_LEVEL)
+    assert result.content is not None
+    assert result.content.slide_title == "Introduction to Next.js"
+
+
+@pytest.mark.asyncio
+async def test_brace_in_leading_prose_is_skipped():
+    import json
+
+    prose = "Set {x} before running. " + json.dumps(VALID)
+    service, _ = build_service([llm_response(prose)])
+    result = await service.draft_topic("Next.js", depth=Depth.HIGH_LEVEL)
+    assert result.content is not None
+    assert result.content.slide_title == "Introduction to Next.js"
+
+
+@pytest.mark.asyncio
 async def test_trailing_comma_is_repaired():
     broken = '{"slide_title": "Routing", "bullet_points": ["A", "B"], "speaker_notes": "Note",}'
     service, _ = build_service([llm_response(broken)])
