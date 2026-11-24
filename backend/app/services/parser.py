@@ -26,13 +26,18 @@ _ENUMERATOR_HEADER_WORDS = rf"{_HEADER_WORDS}|topic"
 # survived enumerator stripping: a word here drops a topic literally named that,
 # and "1. Chapter 1" is a topic ("Vague, terse topic names", TC-03), not a
 # heading.
-_NOISE_PATTERNS = [
+_STRUCTURAL_PATTERNS = [
     re.compile(r"^(week|module|unit|lesson|session|day|class|part|section)\s*\d*\s*[:.\-–]?\s*$", re.I),
     re.compile(r"^(syllabus|course|outline|schedule|topics?|contents?|overview)\s*[:.\-–]?\s*$", re.I),
     re.compile(r"^[\s\-–—=*_#|]+$"),
-    # A bare section number ("1", "1.1", "1.1.") is a heading, not a topic.
-    re.compile(r"^\d+(?:\.\d+)*[.)]?$"),
 ]
+
+# A bare section number ("1", "1.1", "1.1.") is a heading, not a topic. This
+# only holds for a whole line: on "1. 1984" the "1984" left after the "1."
+# enumerator is stripped is the topic, so the rule must not be re-applied to it.
+_BARE_NUMBER = re.compile(r"^\d+(?:\.\d+)*[.)]?$")
+
+_NOISE_PATTERNS = [*_STRUCTURAL_PATTERNS, _BARE_NUMBER]
 
 # Ends an enumerator: a closing parenthesis or colon, a dot that is not the
 # start of another number, or a whitespace-delimited dash. The dot guard is what
@@ -97,6 +102,16 @@ def _is_noise(line: str) -> bool:
     return any(pattern.match(line) for pattern in _NOISE_PATTERNS)
 
 
+def _is_topic_noise(topic: str) -> bool:
+    """Structural noise that still applies after an enumerator is removed.
+
+    The bare-number heading rule is deliberately excluded. On a numbered line
+    like "1. 1984" the remaining number is the topic, and applying the heading
+    rule again silently dropped it (and a list of year topics parsed to nothing).
+    """
+    return any(pattern.match(topic) for pattern in _STRUCTURAL_PATTERNS)
+
+
 def _strip_enumerator(line: str) -> str:
     cleaned = _BULLET.sub("", line)
     cleaned = _ENUMERATOR.sub("", cleaned).strip()
@@ -145,7 +160,7 @@ def parse_topics(raw_text: str, *, max_topics: int = 40) -> list[str]:
             # enumerator residue. It is not a topic. A single alphanumeric
             # character is: "1. C", "2. R", and "a" are real course topics, and
             # dropping them silently removes a slide.
-            if not any(char.isalnum() for char in topic) or _is_noise(topic):
+            if not any(char.isalnum() for char in topic) or _is_topic_noise(topic):
                 continue
             candidates.append(topic)
 

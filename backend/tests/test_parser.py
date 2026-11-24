@@ -211,6 +211,33 @@ def test_keeps_numeric_prefixes_that_are_part_of_the_topic(topic):
 @pytest.mark.parametrize(
     "raw,expected",
     [
+        ("1. 1984\n2. Animal Farm", ["1984", "Animal Farm"]),
+        ("1. 1984\n2. 2001", ["1984", "2001"]),
+        ("1. 1914\n2. 1939\n3. 1945", ["1914", "1939", "1945"]),
+    ],
+)
+def test_keeps_numeric_topics_after_an_enumerator(raw, expected):
+    # A bare number line is a section heading, but on "1. 1984" the number is
+    # the topic once the "1." enumerator is stripped. Re-applying the heading
+    # rule dropped it: a list of year topics parsed to nothing and the request
+    # was rejected as empty.
+    assert parse_topics(raw) == expected
+
+
+def test_bare_number_lines_are_still_headings():
+    # The heading rule must keep working for lines that are only a number.
+    assert parse_topics("1984") == []
+    assert parse_topics("1\n1.1\n1.1.") == []
+
+
+def test_structural_words_are_still_dropped_after_an_enumerator():
+    # "1. Syllabus" is a heading, not the topic "Syllabus".
+    assert parse_topics("1. Syllabus\n2. Algebra") == ["Algebra"]
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
         ("Unit 1.1 Foundations", ["Foundations"]),
         ("Module 2.3 Cells", ["Cells"]),
         ("Lesson 3.2 Photosynthesis", ["Photosynthesis"]),

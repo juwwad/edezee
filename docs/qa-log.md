@@ -10,6 +10,14 @@ Newest entry first. One entry per daily run.
 - Fixed: one `_HEADER_WORDS` list now feeds both enumerator branches, extended with `section|chapter|lecture`. `topic` stays enumerator-only: "1. Chapter 1" is a topic (TC-03), and putting heading words in the noise rule dropped it and failed the mock eval. Added 6 cases.
 - Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`. Not reviewed: open PRs #39 and #40 touch `llm.py` and the parser's noise patterns; this change touches the enumerator lines only.
 
+## 2026-11-22 — Greedy JSON extraction degrades a topic when the reply has two objects or prose braces
+
+- Baseline: `make test` 149 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 152 backend + 53 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: `_load_json` fell back to a greedy `\{.*\}` match, so a reply containing two JSON objects or a brace in surrounding prose made the whole span invalid (`Extra data`) and the topic degraded to a placeholder even though a complete object was present. Repro: `LLMService._load_json('{"slide_title": "A", "bullet_points": ["x"], "speaker_notes": "n"}\n{"slide_title": "B", "bullet_points": ["y"], "speaker_notes": "m"}')` -> `LLMError: Extra data`.
+- Fixed: extraction scans for balanced objects (respecting string literals and escapes) and tries each one with the existing repair ladder, so the first parseable object wins. Added 3 tests; all 3 fail before the fix.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
+
 ## 2026-11-21 — UTF-8 BOM corrupts the first parsed topic
 
 - Baseline: `make test` 145 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 149 backend + 53 harness
