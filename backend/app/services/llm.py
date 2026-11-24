@@ -14,7 +14,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Iterator
 
 import httpx
 from pydantic import ValidationError
@@ -26,7 +26,110 @@ from app.services.research import ResearchBundle
 logger = logging.getLogger(__name__)
 
 _JSON_FENCE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.S | re.I)
-_JSON_OBJECT = re.compile(r"\{.*\}", re.S)
+_UNPARSED = object()
+
+
+def _loads(text: str) -> tuple[Any, json.JSONDecodeError | None]:
+    """Parse *text*, returning ``(_UNPARSED, error)`` when it is not valid JSON."""
+
+    try:
+        return json.loads(text), None
+    except json.JSONDecodeError as exc:
+        return _UNPARSED, exc
+
+
+def _recover_json(text: str) -> Any:
+    """Return the first balanced object in *text* that parses, repairing where safe.
+
+    Repairs are tried in order and the first attempt that parses wins. The quote
+    swap is last because it is destructive: it mangles a possessive
+    ("Parkinson's"), so it must not run once comma removal has already produced
+    valid JSON.
+    """
+
+    last_error: json.JSONDecodeError | None = None
+    for candidate in _iter_balanced_objects(text):
+        payload, last_error = _repair_candidate(candidate)
+        if payload is not _UNPARSED:
+            return payload
+    if last_error is None:
+        raise LLMError("model output contained no JSON object")
+    raise LLMError(f"model output was not valid JSON: {last_error.msg}")
+
+
+def _repair_candidate(candidate: str) -> tuple[Any, json.JSONDecodeError | None]:
+    """Try the cumulative repairs on one candidate, returning the last error."""
+
+    without_trailing_commas = re.sub(r",\s*([}\]])", r"\1", candidate)
+    attempts = (
+        candidate,
+        without_trailing_commas,
+        without_trailing_commas.replace("'", '"'),
+    )
+    last_error: json.JSONDecodeError | None = None
+    for attempt in attempts:
+        payload, last_error = _loads(attempt)
+        if payload is not _UNPARSED:
+            return payload, None
+    return _UNPARSED, last_error
+
+
+def _iter_balanced_objects(text: str) -> Iterator[str]:
+    """Yield each balanced ``{...}`` substring, outermost first.
+
+    A greedy ``\\{.*\\}`` match spans from the first brace to the last, so a
+    second object or a brace in surrounding prose makes the whole span invalid
+    ("Extra data") even when a complete object is present. Scanning for a
+    balanced object, respecting string literals and escapes, and trying each one
+    recovers the real payload.
+    """
+
+    for start, char in enumerate(text):
+        if char != "{":
+            continue
+        end = _matching_brace(text, start)
+        if end is not None:
+            yield text[start : end + 1]
+
+
+def _matching_brace(text: str, start: int) -> int | None:
+    """Return the index of the ``}`` closing the ``{`` at *start*, or ``None``.
+
+    A brace inside a string literal does not open or close an object, so prose
+    such as ``"{appendix}"`` cannot unbalance the scan.
+    """
+
+    depth = 0
+    index = start
+    while index < len(text):
+        current = text[index]
+        if current == '"':
+            index = _string_end(text, index)
+            continue
+        if current == "{":
+            depth += 1
+        elif current == "}":
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    return None
+
+
+def _string_end(text: str, start: int) -> int:
+    """Return the index just past the string literal opening at *start*."""
+
+    escaped = False
+    for index in range(start + 1, len(text)):
+        current = text[index]
+        if escaped:
+            escaped = False
+        elif current == "\\":
+            escaped = True
+        elif current == '"':
+            return index + 1
+    return len(text)
+
 
 _SYSTEM_PROMPT = """You are a curriculum assistant that turns a single syllabus topic into \
 presentation-ready slide content for a teacher.
@@ -273,36 +376,9 @@ class LLMService:
             text = fenced.group(1).strip()
             repaired = True
 
-        try:
-            payload = json.loads(text)
-        except json.JSONDecodeError:
-            match = _JSON_OBJECT.search(text)
-            if not match:
-                raise LLMError("model output contained no JSON object") from None
-            candidate = match.group(0)
-            # Repairs are applied in order and the first one that parses wins.
-            # Each step is cumulative but is only kept if the text becomes valid
-            # JSON: swapping every single quote for a double quote mangles a
-            # possessive ("Parkinson's"), so it must not run when removing
-            # trailing commas has already produced a valid document.
-            without_trailing_commas = re.sub(r",\s*([}\]])", r"\1", candidate)
-            attempts = [
-                candidate,
-                without_trailing_commas,
-                without_trailing_commas.replace("'", '"'),
-            ]
-            payload = None
-            last_error: json.JSONDecodeError | None = None
-            for attempt in attempts:
-                try:
-                    payload = json.loads(attempt)
-                    break
-                except json.JSONDecodeError as exc:
-                    last_error = exc
-            if payload is None:
-                raise LLMError(
-                    f"model output was not valid JSON: {last_error.msg if last_error else 'unknown error'}"
-                ) from None
+        payload, _ = _loads(text)
+        if payload is _UNPARSED:
+            payload = _recover_json(text)
             repaired = True
 
         if not isinstance(payload, dict):

@@ -2,12 +2,12 @@
 
 Newest entry first. One entry per daily run.
 
-## 2026-11-23 — numbered numeric topics silently dropped by the parser
+## 2026-11-22 — Greedy JSON extraction degrades a topic when the reply has two objects or prose braces
 
-- Baseline: `make test` 149 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 154 backend + 53 harness
+- Baseline: `make test` 149 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 152 backend + 53 harness
 - QA: 9 checks run, 9 passed, 0 failed
-- Found: `parse_topics` re-applied the bare-section-number rule to a topic after stripping its enumerator, so a numbered numeric topic vanished. `"1. 1984\n2. 2001"` -> `[]` (request rejected 422 as empty); `"1. 1984\n2. Animal Farm"` -> `['Animal Farm']` (year topic silently lost, no warning). Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('1. 1984\n2. 2001'))"`
-- Fixed: the bare-number heading rule now applies only to a whole line, not to the text left after an enumerator. `"1. 1984"` keeps `1984`; a bare `1984` line is still treated as a heading. Added 5 tests.
+- Found: `_load_json` fell back to a greedy `\{.*\}` match, so a reply containing two JSON objects or a brace in surrounding prose made the whole span invalid (`Extra data`) and the topic degraded to a placeholder even though a complete object was present. Repro: `LLMService._load_json('{"slide_title": "A", "bullet_points": ["x"], "speaker_notes": "n"}\n{"slide_title": "B", "bullet_points": ["y"], "speaker_notes": "m"}')` -> `LLMError: Extra data`.
+- Fixed: extraction scans for balanced objects (respecting string literals and escapes) and tries each one with the existing repair ladder, so the first parseable object wins. Added 3 tests; all 3 fail before the fix.
 - Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`.
 
 ## 2026-11-21 — UTF-8 BOM corrupts the first parsed topic
