@@ -230,6 +230,30 @@ def test_strips_dotted_numbers_after_a_header_word(raw, expected):
     # whitespace terminator as the bare "1.1 Mitosis" case.
     assert parse_topics(raw) == expected
 
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # A heading that carries a topic loses its prefix, as "Week 2: Arrays"
+        # already did.
+        ("Chapter 2: Methods\n1. PCR", ["Methods", "PCR"]),
+        ("Lecture 1: Foundations\nLecture 2: Arrays", ["Foundations", "Arrays"]),
+        ("Section 1: Intro\n1. Mitosis", ["Intro", "Mitosis"]),
+        # "Topic" is an enumerator word, not a heading: "Topic 1" is a topic.
+        ("Topic 1\nTopic 2", ["Topic 1", "Topic 2"]),
+        ("Topic 1: Mitosis", ["Mitosis"]),
+        # A numbered "Chapter 1" is a topic, not a heading (TC-03). Adding
+        # "chapter" to the noise rule dropped it and failed the mock eval.
+        ("1. Chapter 1\n2. Introduction\n3. Basics", ["Chapter 1", "Introduction", "Basics"]),
+    ],
+)
+def test_chapter_and_lecture_headers_are_handled_like_week(raw, expected):
+    # The enumerator's header words were week|module|unit|lesson|session|day|
+    # class|part|topic. "Chapter" and "Lecture" were missing, so those titles
+    # kept their prefix, and "Section" was in the heading rule but not here.
+    assert parse_topics(raw) == expected
+
+
 @pytest.mark.parametrize(
     "topic",
     [

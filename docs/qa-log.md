@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-24 — chapter/lecture/section headers stay in the slide title
+
+- Baseline: `make test` 149 backend + 53 harness passed, `make mock-eval` 12/12, typecheck OK, build OK on retry (first run stops on the Next.js 16 security nudge); after the fix 155 backend + 53 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: the enumerator's header words were `week|module|unit|lesson|session|day|class|part|topic`, so "Lecture 2: Arrays" and "Chapter 3: Trees" kept their prefix as the slide title while "Week 2: Arrays" lost it, and "Section 1: Intro" kept a prefix that a bare "Section 1" line was already dropped for. Repro: `backend/.venv/bin/python -c "from app.services.parser import parse_topics; print(parse_topics('Lecture 1: Foundations\nLecture 2: Arrays'))"` -> `['Lecture 1: Foundations', 'Lecture 2: Arrays']`
+- Fixed: one `_HEADER_WORDS` list now feeds both enumerator branches, extended with `section|chapter|lecture`. `topic` stays enumerator-only: "1. Chapter 1" is a topic (TC-03), and putting heading words in the noise rule dropped it and failed the mock eval. Added 6 cases.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`. Not reviewed: open PRs #39 and #40 touch `llm.py` and the parser's noise patterns; this change touches the enumerator lines only.
+
 ## 2026-11-21 — UTF-8 BOM corrupts the first parsed topic
 
 - Baseline: `make test` 145 backend + 53 harness passed, `make mock-eval` 12/12, typecheck+build OK; after the fix 149 backend + 53 harness
