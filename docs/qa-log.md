@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-25 — sources slide silently drops the sources it cannot fit
+
+- Baseline: `make test` 163 backend + 53 harness passed, `make mock-eval` 12/12, typecheck OK, build OK on retry (first run stops on the Next.js 16 security nudge); after the fix 165 backend + 53 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: `_add_sources_slide` caps the listing at 16 lines with `listing[:14]`, so a researched deck loses the tail with no indication. Seven researched topics with two sources each list 21 lines; the slide shows topics 1-5 and drops topics 6-7 and part of 5. Repro: build 7 `Grounding.RESEARCH` slides with two sources each, read the last slide's body — `"Topic 7" in body` is False and nothing says lines were dropped.
+- Fixed: the cap reserves one line for `…and N more lines not shown.`, so the slide always states how much it omitted; the review disclaimer is still appended after the cap. Added 2 tests (fails before the fix: `assert '8 more lines not shown' in body`).
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`. Frontend build was not re-run after the fix; no frontend file changed.
+
 ## 2026-11-24 — chapter/lecture/section headers stay in the slide title
 
 - Baseline: `make test` 149 backend + 53 harness passed, `make mock-eval` 12/12, typecheck OK, build OK on retry (first run stops on the Next.js 16 security nudge); after the fix 155 backend + 53 harness
