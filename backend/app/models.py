@@ -12,6 +12,14 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
+# Request limits live here so the API's plain-language error text can quote the
+# same number the validator enforces. The advice previously said "use 40 topics
+# or fewer" for a character overflow, so a teacher who already had 40 topics was
+# told to do the one thing they had done.
+SYLLABUS_MAX_CHARS = 20_000
+DECK_TITLE_MAX_CHARS = 200
+
+
 class Depth(str, Enum):
     """How much detail a generated deck should carry."""
 
@@ -35,12 +43,12 @@ class GenerateRequest(BaseModel):
     syllabus_text: str = Field(
         ...,
         description="Raw syllabus text. One topic per line is preferred but not required.",
-        max_length=20_000,
+        max_length=SYLLABUS_MAX_CHARS,
     )
     depth: Depth = Depth.HIGH_LEVEL
     deck_title: str = Field(
         default="",
-        max_length=200,
+        max_length=DECK_TITLE_MAX_CHARS,
         description="Optional deck title. Defaults to 'Course Presentation'.",
     )
 

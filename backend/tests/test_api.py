@@ -162,6 +162,35 @@ def test_oversized_syllabus_does_not_leak_the_pydantic_length_message(client):
     assert "too long" in detail.lower()
 
 
+def test_oversized_syllabus_advice_matches_the_character_limit(client):
+    """The limit that fired is a character cap, not a topic cap.
+
+    A teacher who pasted exactly 40 long topics was told to use 40 topics or
+    fewer, which is the one thing they had already done. The message must name
+    the constraint that actually rejected the request.
+    """
+    topics = [f"{i}. " + "Photosynthesis and the Calvin cycle. " * 20 for i in range(1, 41)]
+    syllabus = "\n".join(topics)
+    assert len(topics) == 40
+    assert len(syllabus) > 20_000
+
+    response = client.post("/api/v1/generate", json={"syllabus_text": syllabus})
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "40 topics" not in detail
+    assert "20,000 characters" in detail
+
+
+def test_oversized_deck_title_advice_names_the_character_limit(client):
+    response = client.post(
+        "/api/v1/generate",
+        json={"syllabus_text": "1. Real topic", "deck_title": "t" * 201},
+    )
+    assert response.status_code == 422
+    assert "200 characters" in response.json()["detail"]
+
+
 def test_oversized_deck_title_does_not_leak_the_pydantic_length_message(client):
     response = client.post(
         "/api/v1/generate",
