@@ -185,43 +185,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
             task = asyncio.create_task(run_pipeline())
 
-            while True:
-                item = await queue.get()
-                if item is None:
-                    break
-                stage, message, completed, total = item
+            try:
+                while True:
+                    item = await queue.get()
+                    if item is None:
+                        break
+                    stage, message, completed, total = item
+                    yield _sse(
+                        {
+                            "type": "progress",
+                            "stage": stage,
+                            "message": message,
+                            "completed": completed,
+                            "total": total,
+                        }
+                    )
+
+                try:
+                    deck_title, slides, diagnostics, deck_bytes = await task
+                except PipelineError as exc:
+                    yield _sse({"type": "error", "message": str(exc)})
+                    return
+                except Exception as exc:  # noqa: BLE001 - report, never leak a stack trace
+                    logger.exception("Pipeline crashed")
+                    yield _sse({"type": "error", "message": f"Unexpected server error: {exc}"})
+                    return
+
+                import base64
+
                 yield _sse(
                     {
-                        "type": "progress",
-                        "stage": stage,
-                        "message": message,
-                        "completed": completed,
-                        "total": total,
+                        "type": "done",
+                        "filename": _filename(deck_title),
+                        "slides": len(slides),
+                        "diagnostics": diagnostics.model_dump(mode="json"),
+                        "slide_plan": [slide.model_dump(mode="json") for slide in slides],
+                        "deck_base64": base64.b64encode(deck_bytes).decode("ascii"),
                     }
                 )
-
-            try:
-                deck_title, slides, diagnostics, deck_bytes = await task
-            except PipelineError as exc:
-                yield _sse({"type": "error", "message": str(exc)})
-                return
-            except Exception as exc:  # noqa: BLE001 - report, never leak a stack trace
-                logger.exception("Pipeline crashed")
-                yield _sse({"type": "error", "message": f"Unexpected server error: {exc}"})
-                return
-
-            import base64
-
-            yield _sse(
-                {
-                    "type": "done",
-                    "filename": _filename(deck_title),
-                    "slides": len(slides),
-                    "diagnostics": diagnostics.model_dump(mode="json"),
-                    "slide_plan": [slide.model_dump(mode="json") for slide in slides],
-                    "deck_base64": base64.b64encode(deck_bytes).decode("ascii"),
-                }
-            )
+            finally:
+                # The UI's Cancel button aborts the fetch, which disconnects
+                # mid-stream. Without this the pipeline kept calling the model
+                # for every remaining topic after the user had cancelled.
+                if not task.done():
+                    task.cancel()
 
         return StreamingResponse(
             event_stream(),

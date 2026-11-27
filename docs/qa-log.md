@@ -2,6 +2,14 @@
 
 Newest entry first. One entry per daily run.
 
+## 2026-11-27 — cancelling a stream run now stops the pipeline
+
+- Baseline: `make test` 163 backend + 53 harness passed, `make mock-eval` 12/12, typecheck OK, build OK on retry (Next.js security nudge); after the fix 164 backend + 53 harness
+- QA: 9 checks run, 9 passed, 0 failed
+- Found: the UI's Cancel button aborts the fetch, but `/api/v1/generate/stream` never cancelled its `run_pipeline` task, so a cancelled 40-topic run kept calling the model for every remaining topic. Repro: `cd backend && ./.venv/bin/python -m pytest tests/test_api.py -k disconnect` fails on `main` with "pipeline kept running after the client disconnected".
+- Fixed: the SSE generator cancels its background task in a `finally`, so a disconnect stops drafting. Added 1 test; fails before the fix, passes after.
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`. Open PRs #42 and #43 touch other files and were not duplicated.
+
 ## 2026-11-24 — chapter/lecture/section headers stay in the slide title
 
 - Baseline: `make test` 149 backend + 53 harness passed, `make mock-eval` 12/12, typecheck OK, build OK on retry (first run stops on the Next.js 16 security nudge); after the fix 155 backend + 53 harness
