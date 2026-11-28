@@ -230,3 +230,49 @@ async def test_sources_slide_always_keeps_the_review_disclaimer():
         shape.text_frame.text for shape in prs.slides[-1].shapes if shape.has_text_frame
     ][-1]
     assert "Review before teaching" in sources_body
+
+
+def _sources_body(slides: list[Slide]) -> str:
+    from io import BytesIO
+
+    from pptx import Presentation
+
+    prs = Presentation(BytesIO(build_presentation(slides, deck_title="T")))
+    return [
+        shape.text_frame.text for shape in prs.slides[-1].shapes if shape.has_text_frame
+    ][-1]
+
+
+def _researched_slides(count: int) -> list[Slide]:
+    return [
+        Slide(
+            topic=f"Topic {i}",
+            slide_number=i,
+            slide_title=f"Topic {i}",
+            bullet_points=["A point."],
+            grounding=Grounding.RESEARCH,
+            sources=[f"https://example.org/{i}/a", f"https://example.org/{i}/b"],
+        )
+        for i in range(1, count + 1)
+    ]
+
+
+def test_sources_slide_counts_the_lines_it_had_to_drop():
+    """A capped listing must say how much it left out.
+
+    The sources slide is the only place a deck names its sources, so a listing
+    cut to fit the slide silently reads as "these topics had no sources". Seven
+    researched topics overflow the cap; the slide must state how many lines it
+    omitted.
+    """
+
+    body = _sources_body(_researched_slides(7))
+    assert "Topic 7" not in body
+    assert "8 more lines not shown" in body
+    assert "Review before teaching" in body
+
+
+def test_sources_slide_does_not_claim_omission_when_nothing_was_dropped():
+    body = _sources_body(_researched_slides(1))
+    assert "not shown" not in body
+    assert "Review before teaching" in body

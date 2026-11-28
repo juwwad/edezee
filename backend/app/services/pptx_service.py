@@ -167,9 +167,17 @@ def _add_sources_slide(presentation: Presentation, slides: list[Slide]) -> None:
     # The slide is a fixed size, so the source listing is capped. The review
     # disclaimer is not part of that budget: it is the one warning the deck must
     # always carry, so it is appended after the cap rather than competing for a
-    # line inside it.
+    # line inside it. This slide is the only place a deck names its sources, so
+    # a capped listing reserves a line to say how many it dropped; without it a
+    # truncated list reads as "those topics had no sources".
     footer = ["", "Review before teaching: automated content can contain errors."]
-    lines = listing[: _MAX_SOURCES_LINES - len(footer)] + footer
+    budget = _MAX_SOURCES_LINES - len(footer)
+    shown = listing[:budget]
+    if len(shown) < len(listing):
+        shown = listing[: budget - 1]
+        dropped = len(listing) - len(shown)
+        shown.append(f"…and {dropped} more line{'s' if dropped != 1 else ''} not shown.")
+    lines = shown + footer
 
     for index, line in enumerate(lines):
         paragraph = frame.paragraphs[0] if index == 0 else frame.add_paragraph()

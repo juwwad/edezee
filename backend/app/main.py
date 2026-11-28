@@ -29,6 +29,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.config import Settings, get_settings
 from app.models import (
+    DECK_TITLE_MAX_CHARS,
+    SYLLABUS_MAX_CHARS,
     Depth,
     GenerateRequest,
     GenerateResponse,
@@ -288,8 +290,14 @@ def _plain_message(errors: list[dict]) -> str:
     if error_type in {"string_too_long", "string_too_short"}:
         field = str(first.get("loc", ("",))[-1])
         labels = {
-            "syllabus_text": "That syllabus is too long. Use 40 topics or fewer and try again.",
-            "deck_title": "That deck title is too long. Please shorten it and try again.",
+            "syllabus_text": (
+                "That syllabus is too long. Please shorten it to "
+                f"{SYLLABUS_MAX_CHARS:,} characters or fewer and try again."
+            ),
+            "deck_title": (
+                "That deck title is too long. Please shorten it to "
+                f"{DECK_TITLE_MAX_CHARS} characters or fewer and try again."
+            ),
         }
         message = labels.get(field, message)
 

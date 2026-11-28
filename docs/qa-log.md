@@ -2,13 +2,13 @@
 
 Newest entry first. One entry per daily run.
 
-## 2026-11-27 — cancelling a stream run now stops the pipeline
+## 2026-11-25 — sources slide silently drops the sources it cannot fit
 
-- Baseline: `make test` 163 backend + 53 harness passed, `make mock-eval` 12/12, typecheck OK, build OK on retry (Next.js security nudge); after the fix 164 backend + 53 harness
+- Baseline: `make test` 163 backend + 53 harness passed, `make mock-eval` 12/12, typecheck OK, build OK on retry (first run stops on the Next.js 16 security nudge); after the fix 165 backend + 53 harness
 - QA: 9 checks run, 9 passed, 0 failed
-- Found: the UI's Cancel button aborts the fetch, but `/api/v1/generate/stream` never cancelled its `run_pipeline` task, so a cancelled 40-topic run kept calling the model for every remaining topic. Repro: `cd backend && ./.venv/bin/python -m pytest tests/test_api.py -k disconnect` fails on `main` with "pipeline kept running after the client disconnected".
-- Fixed: the SSE generator cancels its background task in a `finally`, so a disconnect stops drafting. Added 1 test; fails before the fix, passes after.
-- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`. Open PRs #42 and #43 touch other files and were not duplicated.
+- Found: `_add_sources_slide` caps the listing at 16 lines with `listing[:14]`, so a researched deck loses the tail with no indication. Seven researched topics with two sources each list 21 lines; the slide shows topics 1-5 and drops topics 6-7 and part of 5. Repro: build 7 `Grounding.RESEARCH` slides with two sources each, read the last slide's body — `"Topic 7" in body` is False and nothing says lines were dropped.
+- Fixed: the cap reserves one line for `…and N more lines not shown.`, so the slide always states how much it omitted; the review disclaimer is still appended after the cap. Added 2 tests (fails before the fix: `assert '8 more lines not shown' in body`).
+- Could not verify: `make eval` (live) — no `OPENROUTER_API_KEY` in the environment or `backend/.env`. Frontend build was not re-run after the fix; no frontend file changed.
 
 ## 2026-11-24 — chapter/lecture/section headers stay in the slide title
 
