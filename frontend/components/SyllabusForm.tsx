@@ -45,7 +45,7 @@ export default function SyllabusForm({
   onDeckTitleChange,
   onDepthChange,
   onSubmit,
-}: SyllabusFormProps) {
+}: Readonly<SyllabusFormProps>) {
   const [localError, setLocalError] = useState<string | null>(null);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
