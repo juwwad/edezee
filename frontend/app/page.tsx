@@ -34,6 +34,11 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [run, setRun] = useState<RunState>(EMPTY_RUN);
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  // The form unmounts while a run is in flight, so its input lives here to
+  // survive a failure: a user who hits a validation error keeps their paste.
+  const [syllabusText, setSyllabusText] = useState("");
+  const [deckTitle, setDeckTitle] = useState("");
+  const [depth, setDepth] = useState<Depth>("High-Level");
 
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -149,7 +154,16 @@ export default function HomePage() {
 
       {phase !== "done" && phase !== "running" && (
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <SyllabusForm busy={busy} onSubmit={handleSubmit} />
+          <SyllabusForm
+            busy={busy}
+            syllabusText={syllabusText}
+            deckTitle={deckTitle}
+            depth={depth}
+            onSyllabusTextChange={setSyllabusText}
+            onDeckTitleChange={setDeckTitle}
+            onDepthChange={setDepth}
+            onSubmit={handleSubmit}
+          />
         </section>
       )}
 
