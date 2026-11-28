@@ -7,6 +7,7 @@ error bodies for bad input.
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 import httpx
@@ -160,6 +161,35 @@ def test_oversized_syllabus_does_not_leak_the_pydantic_length_message(client):
     detail = response.json()["detail"]
     assert "at most" not in detail
     assert "too long" in detail.lower()
+
+
+def test_oversized_syllabus_advice_matches_the_character_limit(client):
+    """The limit that fired is a character cap, not a topic cap.
+
+    A teacher who pasted exactly 40 long topics was told to use 40 topics or
+    fewer, which is the one thing they had already done. The message must name
+    the constraint that actually rejected the request.
+    """
+    topics = [f"{i}. " + "Photosynthesis and the Calvin cycle. " * 20 for i in range(1, 41)]
+    syllabus = "\n".join(topics)
+    assert len(topics) == 40
+    assert len(syllabus) > 20_000
+
+    response = client.post("/api/v1/generate", json={"syllabus_text": syllabus})
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "40 topics" not in detail
+    assert "20,000 characters" in detail
+
+
+def test_oversized_deck_title_advice_names_the_character_limit(client):
+    response = client.post(
+        "/api/v1/generate",
+        json={"syllabus_text": "1. Real topic", "deck_title": "t" * 201},
+    )
+    assert response.status_code == 422
+    assert "200 characters" in response.json()["detail"]
 
 
 def test_oversized_deck_title_does_not_leak_the_pydantic_length_message(client):
@@ -415,3 +445,83 @@ def test_demo_known_topic_still_matches():
     body = _demo_plan("1. What is retrieval-augmented generation (RAG)?")
     bullets = " ".join(body["slides"][0]["bullet_points"]).lower()
     assert "retrieval" in bullets or "rag" in bullets
+
+class _SlowPipeline:
+    """A pipeline that never finishes on its own, so cancellation is observable."""
+
+    def __init__(self) -> None:
+        self.progress_sent = asyncio.Event()
+        self.cancelled = asyncio.Event()
+
+    async def generate(self, syllabus_text, *, depth=None, deck_title="", on_progress=None):
+        if on_progress is not None:
+            await on_progress("parsing", "Parsing 1 topics...", 0, 1)
+        self.progress_sent.set()
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            self.cancelled.set()
+            raise
+        return "Deck", [], None
+
+
+async def _stream_then_disconnect(app, pipeline: _SlowPipeline) -> tuple[bool, bool]:
+    """Run one stream request over ASGI, then drop the connection mid-run.
+
+    Returns ``(reached_pipeline, stopped)``. ``stopped`` is read while the loop is
+    still running: ``asyncio.run`` cancels leftover tasks on exit, so asserting
+    afterwards would report a pipeline that was never cancelled as stopped.
+    """
+
+    body = json.dumps({"syllabus_text": "1. Real topic"}).encode()
+    body_read = False
+
+    async def receive():
+        nonlocal body_read
+        if not body_read:
+            body_read = True
+            return {"type": "http.request", "body": body, "more_body": False}
+        await pipeline.progress_sent.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        return None
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/api/v1/generate/stream",
+        "raw_path": b"/api/v1/generate/stream",
+        "query_string": b"",
+        "root_path": "",
+        "headers": [(b"content-type", b"application/json"), (b"host", b"test")],
+        "client": ("127.0.0.1", 1234),
+        "server": ("test", 80),
+    }
+
+    await asyncio.wait_for(app(scope, receive, send), timeout=10)
+    try:
+        await asyncio.wait_for(pipeline.cancelled.wait(), timeout=2)
+    except asyncio.TimeoutError:
+        return pipeline.progress_sent.is_set(), False
+    return True, True
+
+
+def test_client_disconnect_cancels_the_running_pipeline():
+    """The Cancel button aborts the fetch, so the server must stop drafting.
+
+    Without cancelling the background task, a cancelled run kept calling the
+    model for every remaining topic after the browser had already gone away.
+    """
+
+    app = create_app(make_settings())
+    pipeline = _SlowPipeline()
+    app.state.pipeline = pipeline
+
+    reached, stopped = asyncio.run(_stream_then_disconnect(app, pipeline))
+
+    assert reached, "the stream never reached the pipeline"
+    assert stopped, "pipeline kept running after the client disconnected"
