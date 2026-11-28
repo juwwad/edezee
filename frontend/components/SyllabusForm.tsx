@@ -5,6 +5,12 @@ import type { Depth } from "@/lib/api";
 
 interface SyllabusFormProps {
   busy: boolean;
+  syllabusText: string;
+  deckTitle: string;
+  depth: Depth;
+  onSyllabusTextChange: (value: string) => void;
+  onDeckTitleChange: (value: string) => void;
+  onDepthChange: (value: Depth) => void;
   onSubmit: (values: { syllabusText: string; depth: Depth; deckTitle: string }) => void;
 }
 
@@ -30,10 +36,16 @@ const SAMPLE_SYLLABUS = `1. What is retrieval-augmented generation (RAG)?
 3. Chunking strategies for documents
 4. Evaluating answer faithfulness`;
 
-export default function SyllabusForm({ busy, onSubmit }: SyllabusFormProps) {
-  const [syllabusText, setSyllabusText] = useState("");
-  const [deckTitle, setDeckTitle] = useState("");
-  const [depth, setDepth] = useState<Depth>("High-Level");
+export default function SyllabusForm({
+  busy,
+  syllabusText,
+  deckTitle,
+  depth,
+  onSyllabusTextChange,
+  onDeckTitleChange,
+  onDepthChange,
+  onSubmit,
+}: SyllabusFormProps) {
   const [localError, setLocalError] = useState<string | null>(null);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -56,7 +68,7 @@ export default function SyllabusForm({ busy, onSubmit }: SyllabusFormProps) {
           id="deck-title"
           type="text"
           value={deckTitle}
-          onChange={(event) => setDeckTitle(event.target.value)}
+          onChange={(event) => onDeckTitleChange(event.target.value)}
           disabled={busy}
           maxLength={200}
           placeholder="Introduction to Retrieval-Augmented Generation"
@@ -75,7 +87,7 @@ export default function SyllabusForm({ busy, onSubmit }: SyllabusFormProps) {
           id="syllabus"
           rows={10}
           value={syllabusText}
-          onChange={(event) => setSyllabusText(event.target.value)}
+          onChange={(event) => onSyllabusTextChange(event.target.value)}
           disabled={busy}
           aria-describedby="syllabus-help"
           placeholder={"1. What is Next.js?\n2. Server vs. client components\n3. Data fetching strategies"}
@@ -87,7 +99,7 @@ export default function SyllabusForm({ busy, onSubmit }: SyllabusFormProps) {
           </span>
           <button
             type="button"
-            onClick={() => setSyllabusText(SAMPLE_SYLLABUS)}
+            onClick={() => onSyllabusTextChange(SAMPLE_SYLLABUS)}
             disabled={busy}
             className="text-xs font-medium text-blue-600 underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:text-slate-400"
           >
@@ -116,7 +128,7 @@ export default function SyllabusForm({ busy, onSubmit }: SyllabusFormProps) {
                     name="depth"
                     value={option.value}
                     checked={selected}
-                    onChange={() => setDepth(option.value)}
+                    onChange={() => onDepthChange(option.value)}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                   />
                   <span className="text-sm font-semibold text-slate-900">{option.label}</span>
